@@ -269,33 +269,35 @@ function buildCard(matchObj, context) {
     statusLine = `<div class="conn-footer"><span>${dateStr}</span><span class="conn-dir">${dirText}</span></div>`;
   }
 
-  // Right-column buttons
+  // Right-column: 2×2 grid — score | primary action / full profile | secondary
   let rightButtons = '';
   if (context === 'inbound') {
     rightButtons = `
+      ${pct !== null ? `<button class="score-pill ${sClass}" onclick="openScoreModal('${p.id}')">${pct}% match</button>` : '<span></span>'}
       <button class="card-btn card-btn-accept" onclick="acceptRequest('${p.id}')">Accept</button>
-      <button class="card-btn card-btn-ignore" onclick="ignoreRequest('${p.id}')">Ignore</button>
-      ${pct !== null ? `<button class="score-pill ${sClass}" onclick="openScoreModal('${p.id}')">${pct}% match</button>` : ''}
-      <button class="card-btn-more" onclick="openProfileModal('${p.id}')">Full profile…</button>`;
+      <button class="card-btn-more" onclick="openProfileModal('${p.id}')">Full profile…</button>
+      <button class="card-btn-ignore" onclick="ignoreRequest('${p.id}')">Ignore</button>`;
   } else if (context === 'match') {
     rightButtons = `
+      ${pct !== null ? `<button class="score-pill ${sClass}" onclick="openScoreModal('${p.id}')">${pct}% match</button>` : '<span></span>'}
       <button class="card-btn card-btn-primary" onclick="sendRequest('${p.id}')">Request</button>
-      <button class="card-btn card-btn-dismiss" onclick="dismiss('${p.id}')">Dismiss</button>
-      ${pct !== null ? `<button class="score-pill ${sClass}" onclick="openScoreModal('${p.id}')">${pct}% match</button>` : ''}
-      <button class="card-btn-more" onclick="openProfileModal('${p.id}')">Full profile…</button>`;
+      <button class="card-btn-more" onclick="openProfileModal('${p.id}')">Full profile…</button>
+      <button class="card-btn-dismiss" onclick="dismiss('${p.id}')">Dismiss</button>`;
   } else if (context === 'sent-pending') {
     rightButtons = `
-      <button class="card-btn card-btn-withdraw" onclick="withdrawRequest('${p.id}')">Withdraw request</button>
-      ${pct !== null ? `<button class="score-pill ${sClass}" onclick="openScoreModal('${p.id}')">${pct}% match</button>` : ''}
-      <button class="card-btn-more" onclick="openProfileModal('${p.id}')">Full profile…</button>`;
+      ${pct !== null ? `<button class="score-pill ${sClass}" onclick="openScoreModal('${p.id}')">${pct}% match</button>` : '<span></span>'}
+      <button class="card-btn card-btn-withdraw" onclick="withdrawRequest('${p.id}')">Withdraw</button>
+      <button class="card-btn-more" onclick="openProfileModal('${p.id}')">Full profile…</button>
+      <span></span>`;
   } else if (context === 'connected') {
     rightButtons = `
+      ${pct !== null ? `<button class="score-pill ${sClass}" onclick="openScoreModal('${p.id}')">${pct}% match</button>` : '<span></span>'}
       <a class="card-btn card-btn-email" href="mailto:${p.name}">
         <svg width="12" height="12" viewBox="0 0 13 13" fill="none"><rect x="1" y="2.5" width="11" height="8" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M1 4l5.5 3.5L12 4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
-        Send email
+        Email
       </a>
-      ${pct !== null ? `<button class="score-pill ${sClass}" onclick="openScoreModal('${p.id}')">${pct}% match</button>` : ''}
-      <button class="card-btn-more" onclick="openProfileModal('${p.id}')">Full profile…</button>`;
+      <button class="card-btn-more" onclick="openProfileModal('${p.id}')">Full profile…</button>
+      <span></span>`;
   }
 
   card.innerHTML = `
