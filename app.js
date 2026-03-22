@@ -1284,8 +1284,16 @@ if (isAdminUnlocked()) {
   document.getElementById('adminBtn').style.display = 'flex';
 }
 
-// Secret: triple-click the version number to reveal admin button (UX hint for demo)
-document.querySelector('.app-version').addEventListener('dblclick', () => {
+// Single-click version number to reveal admin button
+document.querySelector('.app-version').addEventListener('click', () => {
   document.getElementById('adminBtn').style.display = 'flex';
   document.getElementById('adminBtn').title = 'Admin settings (click to unlock)';
+});
+
+// Keyboard shortcut: Ctrl+Shift+A
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey && e.shiftKey && e.key === 'A') {
+    document.getElementById('adminBtn').style.display = 'flex';
+    checkAndShowAdmin();
+  }
 });
