@@ -203,6 +203,18 @@ function scoreClass(pct) {
   return 'score-low';
 }
 
+function accentColor(pct) {
+  if (pct >= 65) return '#639922';
+  if (pct >= 40) return '#EF9F27';
+  return '#E24B4A';
+}
+
+function matchTextColor(pct) {
+  if (pct >= 65) return '#27500A';
+  if (pct >= 40) return '#633806';
+  return '#A32D2D';
+}
+
 function styleLabel(s) {
   return { clean: 'Clean handover', collaborative: 'Collaborative', flexible: 'Flexible', unsure: 'Not sure yet' }[s] || s;
 }
@@ -250,102 +262,120 @@ function hasActiveFilters() {
 // ─── Build a match/connection card ───────────────────────────────────────────
 
 function buildCard(matchObj, context) {
-  // context: 'inbound' | 'match' | 'sent-pending' | 'connected'
   const p = matchObj.profile;
   const pct = matchObj.score !== undefined ? scoreToPercent(matchObj.score) : null;
-  const sClass = pct !== null ? scoreClass(pct) : 'score-low';
   const locDisplay = locationShort(p.location, p.overseas);
   const matched = matchObj.matched || [];
+  const gradeDiff = matchObj.gradeDiff ?? 0;
 
-  const card = document.createElement('div');
-  card.className = 'match-card';
-  card.dataset.id = p.id;
-  if (context === 'inbound') card.classList.add('card-inbound');
-  if (context === 'connected') card.classList.add('card-connected');
+  // Accent bar colour from match %
+  const accent = pct !== null ? accentColor(pct) : '#ccc';
+  const matchColor = pct !== null ? matchTextColor(pct) : '#888';
 
-  // Build tag chips from matched array (no duplication with name row)
-  const tagChips = matched.slice(0, 4).map(m => {
-    const cls = (m.type === 'role' || m.type === 'dir' || m.type === 'days') ? 'tag-match' : 'tag-neutral';
-    return `<span class="tag ${cls}">${m.label}</span>`;
+  // Tags: grade always grey, matched items green, location green if same as user
+  const userLoc = state.profile ? state.profile.location : null;
+  const matchedRoles = matched.filter(m => m.type === 'role' || m.type === 'dir').map(m => m.label);
+  const matchedDays = matched.filter(m => m.type === 'days').map(m => m.label);
+
+  const gradeBadge = `<span class="ctag ctag-grey">${p.grade}</span>`;
+
+  const roleTags = p.roles.slice(0, 2).map(r => {
+    const isMatch = matchedRoles.some(mr => r.includes(mr) || mr.includes(r));
+    return `<span class="ctag ${isMatch ? 'ctag-green' : 'ctag-grey'}">${r}</span>`;
   }).join('');
 
-  // Location tag always shown
-  const locTag = `<span class="tag" style="${locTagStyle(p.location)}">${locDisplay}</span>`;
+  const dirTags = p.directorates.filter(d => d !== 'Open to any').slice(0, 1).map(d => {
+    const isMatch = state.profile && (
+      state.profile.directorates.includes(d) ||
+      state.profile.directorates.includes('Open to any') ||
+      p.directorates.includes('Open to any')
+    );
+    return `<span class="ctag ${isMatch ? 'ctag-green' : 'ctag-grey'}">${d}</span>`;
+  }).join('');
 
-  // Grade warning tag — shown when 1 grade apart
-  const gradeDiff = matchObj.gradeDiff ?? 0;
-  const gradeWarningTag = gradeDiff === 1
-    ? `<span class="tag tag-grade-warn" title="Job shares typically require the same grade. This person is 1 grade away — possible in some posts but worth discussing.">⚠ Grade mismatch</span>`
+  const dayTag = (() => {
+    const candDays = p.days.join(' ');
+    const isMatch = matchedDays.length > 0;
+    return `<span class="ctag ${isMatch ? 'ctag-green' : 'ctag-grey'}">${candDays}</span>`;
+  })();
+
+  const locTag = (() => {
+    const isMatch = userLoc && p.location === userLoc;
+    return `<span class="ctag ${isMatch ? 'ctag-green' : 'ctag-grey'}">${locDisplay}</span>`;
+  })();
+
+  const gradeWarn = gradeDiff === 1
+    ? `<span class="ctag ctag-warn" title="Job shares typically require the same grade. 1 grade apart — discuss first.">⚠ Grade mismatch</span>`
     : '';
 
-  // Name row extras
-  let nameRowExtra = '';
-  if (context === 'inbound') nameRowExtra = `<span class="inbound-label">Requested you</span>`;
-  if (context === 'sent-pending') nameRowExtra = `<span class="pending-label">Request sent</span>`;
+  // Status line on name row
+  let statusText = '';
+  if (context === 'inbound') statusText = `<span class="cstatus-inbound">· Requested you</span>`;
+  else if (context === 'sent-pending') statusText = `<span class="cstatus-pending">· Request sent</span>`;
 
-  // Status line
-  let statusLine = '';
-  if (context === 'inbound') {
-    statusLine = `<div class="card-status"><span class="status-dot dot-received"></span>Waiting for your response</div>`;
-  } else if (context === 'sent-pending') {
-    statusLine = `<div class="card-status"><span class="status-dot dot-sent"></span>Awaiting their response</div>`;
-  } else if (context === 'connected') {
+  // Bottom info row: match % + awaiting text + full profile link
+  let bottomInfo = '';
+  if (pct !== null) {
+    let awaitText = '';
+    if (context === 'inbound') awaitText = `<span class="cawait"> · Awaiting your response</span>`;
+    if (context === 'sent-pending') awaitText = `<span class="cawait"> · Awaiting their response</span>`;
+    bottomInfo = `<div class="ccard-bottom">
+      <span class="cmatch" style="color:${matchColor};" onclick="openScoreModal('${p.id}')">${pct}% match</span>
+      ${awaitText}
+      <a class="cfp" onclick="openProfileModal('${p.id}')">Full profile…</a>
+    </div>`;
+  }
+
+  // Connected footer
+  let connFooter = '';
+  if (context === 'connected') {
     const conn = state.connections.find(c => c.id === p.id);
     const dirText = conn && conn.dir === 'sent' ? 'You requested · they accepted' : 'They requested · you accepted';
     const dateStr = conn ? relativeDate(conn.ts) : '';
-    statusLine = `<div class="conn-footer"><span>${dateStr}</span><span class="conn-dir">${dirText}</span></div>`;
+    connFooter = `<div class="cconn-footer"><span>${dateStr}</span><span class="cconn-dir">${dirText}</span></div>`;
   }
 
-  // Right panel: 2×2 grid
-  // Row 1: % match pill (left)  |  Full profile button (right)
-  // Row 2: primary action (left) |  secondary action (right)
-  const scorePill = pct !== null
-    ? `<button class="score-pill ${sClass}" onclick="openScoreModal('${p.id}')">${pct}% match</button>`
-    : `<span></span>`;
-  const profileBtn = `<button class="card-btn card-btn-profile" onclick="openProfileModal('${p.id}')">Full profile…</button>`;
+  // Right column buttons — all:unset to defeat browser defaults, inline styles for reliability
+  const btnBlue = `background:#185FA5;color:#fff;`;
+  const btnGhost = `background:transparent;color:#999;border:0.5px solid #ccc;`;
+  const btnBase = `all:unset;display:block;width:100%;box-sizing:border-box;text-align:center;font-size:12px;font-weight:500;padding:5px 0;border-radius:7px;cursor:pointer;`;
 
-  let rightButtons = '';
+  let rightCol = '';
   if (context === 'inbound') {
-    rightButtons = `
-      ${scorePill}
-      ${profileBtn}
-      <button class="card-btn card-btn-accept" onclick="acceptRequest('${p.id}')">Accept</button>
-      <button class="card-btn card-btn-secondary" onclick="ignoreRequest('${p.id}')">Ignore</button>`;
+    rightCol = `
+      <button style="${btnBase}${btnBlue}" onclick="acceptRequest('${p.id}')">Accept</button>
+      <button style="${btnBase}${btnGhost}" onclick="ignoreRequest('${p.id}')">Ignore</button>`;
   } else if (context === 'match') {
-    rightButtons = `
-      ${scorePill}
-      ${profileBtn}
-      <button class="card-btn card-btn-primary" onclick="sendRequest('${p.id}')">Request</button>
-      <button class="card-btn card-btn-secondary" onclick="dismiss('${p.id}')">Dismiss</button>`;
+    rightCol = `
+      <button style="${btnBase}${btnBlue}" onclick="sendRequest('${p.id}')">Request</button>
+      <button style="${btnBase}${btnGhost}" onclick="dismiss('${p.id}')">Dismiss</button>`;
   } else if (context === 'sent-pending') {
-    rightButtons = `
-      ${scorePill}
-      ${profileBtn}
-      <button class="card-btn card-btn-withdraw" onclick="withdrawRequest('${p.id}')">Withdraw</button>
-      <span></span>`;
+    rightCol = `
+      <button style="${btnBase}${btnGhost}" onclick="withdrawRequest('${p.id}')">Withdraw</button>`;
   } else if (context === 'connected') {
-    rightButtons = `
-      ${scorePill}
-      ${profileBtn}
-      <a class="card-btn card-btn-email" href="mailto:${p.name}">
-        <svg width="12" height="12" viewBox="0 0 13 13" fill="none"><rect x="1" y="2.5" width="11" height="8" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M1 4l5.5 3.5L12 4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+    rightCol = `
+      <a style="${btnBase}${btnBlue}text-decoration:none;display:flex;align-items:center;justify-content:center;gap:5px;" href="mailto:${p.name}">
+        <svg width="11" height="11" viewBox="0 0 13 13" fill="none"><rect x="1" y="2.5" width="11" height="8" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M1 4l5.5 3.5L12 4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
         Email
-      </a>
-      <span></span>`;
+      </a>`;
   }
 
+  const card = document.createElement('div');
+  card.className = 'ccard';
+  card.dataset.id = p.id;
   card.innerHTML = `
-    <div class="card-layout">
-      <div class="card-left">
-        <div class="card-name-row">
-          <span class="card-name">${p.name}</span>
-          <span class="card-grade">${p.grade}</span>
-          ${nameRowExtra}
+    <div class="ccard-accent" style="background:${accent};"></div>
+    <div class="ccard-inner">
+      <div class="ccard-left">
+        <div class="ccard-name-row">
+          <span class="ccard-name">${p.name}</span>
+          ${statusText}
         </div>
-        <div class="card-tags">${tagChips}${locTag}${gradeWarningTag}</div>
-        ${statusLine}
+        <div class="ccard-tags">${gradeBadge}${roleTags}${dirTags}${dayTag}${locTag}${gradeWarn}</div>
+        ${bottomInfo}
+        ${connFooter}
       </div>
-      <div class="card-right">${rightButtons}</div>
+      <div class="ccard-right">${rightCol}</div>
     </div>`;
 
   return card;
