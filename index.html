@@ -24,6 +24,21 @@
           </svg>
           <span>Privacy</span>
         </button>
+        <button class="about-btn" id="aboutBtn" title="About PairUp">
+          <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+            <circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.3"/>
+            <path d="M7 6.5v4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+            <circle cx="7" cy="4.5" r="0.7" fill="currentColor"/>
+          </svg>
+          <span>About</span>
+        </button>
+        <button class="admin-btn" id="adminBtn" title="Admin settings" style="display:none;">
+          <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+            <circle cx="7" cy="7" r="2" stroke="currentColor" stroke-width="1.3"/>
+            <path d="M7 1v1.5M7 11.5V13M1 7h1.5M11.5 7H13M2.93 2.93l1.06 1.06M10.01 10.01l1.06 1.06M2.93 11.07l1.06-1.06M10.01 3.99l1.06-1.06" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+          </svg>
+          <span>Admin</span>
+        </button>
         <button class="refresh-btn" id="refreshBtn" title="Refresh matches">
           <svg width="14" height="14" viewBox="0 0 15 15" fill="none">
             <path d="M1.5 7.5a6 6 0 1 0 6-6 6 6 0 0 0-4.24 1.76" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
@@ -198,6 +213,19 @@
           </div>
           <div class="filter-bar" id="filterBar">
             <div class="filter-section">
+              <div class="filter-section-label">Grade</div>
+              <div class="filter-chips" id="filterGrade">
+                <button class="filter-chip" data-val="AA/AO">AA/AO</button>
+                <button class="filter-chip" data-val="EO">EO</button>
+                <button class="filter-chip" data-val="HEO">HEO</button>
+                <button class="filter-chip" data-val="SEO">SEO</button>
+                <button class="filter-chip" data-val="G7">G7</button>
+                <button class="filter-chip" data-val="G6">G6</button>
+                <button class="filter-chip" data-val="SCS1">SCS1</button>
+                <button class="filter-chip" data-val="SCS2">SCS2</button>
+              </div>
+            </div>
+            <div class="filter-section">
               <div class="filter-section-label">Must be able to work these days</div>
               <div class="filter-chips" id="filterDays">
                 <button class="filter-chip" data-val="Mon">Mon</button>
@@ -337,8 +365,142 @@
     </div>
   </div>
 
+  <!-- About modal -->
+  <div class="modal-overlay" id="aboutOverlay" onclick="closeAboutIfBg(event)">
+    <div class="modal-box privacy-modal-box">
+      <button class="modal-close" onclick="closeAbout()">x</button>
+      <div class="privacy-modal-header">
+        <svg width="22" height="22" viewBox="0 0 14 14" fill="none" style="flex-shrink:0;">
+          <circle cx="7" cy="7" r="5.5" stroke="#185FA5" stroke-width="1.3"/>
+          <path d="M7 6.5v4" stroke="#185FA5" stroke-width="1.4" stroke-linecap="round"/>
+          <circle cx="7" cy="4.5" r="0.7" fill="#185FA5"/>
+        </svg>
+        <div>
+          <div class="privacy-modal-title">About FCDO PairUp</div>
+          <div class="privacy-modal-sub">How the app works and how matches are scored</div>
+        </div>
+      </div>
+
+      <div class="privacy-section">
+        <div class="privacy-section-label" style="color:#185FA5;">What is PairUp?</div>
+        <p class="privacy-text">PairUp helps FCDO staff find compatible job share partners during the restructure. Finding a job share partner who wants the same role, works complementary days, and has a compatible working style has historically taken months of informal networking. PairUp makes that search systematic, private, and quick.</p>
+        <p class="privacy-text" style="margin-top:8px;">You create a profile with your preferences, the app finds potential matches from other registered staff, and you can signal interest. Contact only happens when both sides opt in.</p>
+      </div>
+
+      <div class="privacy-section">
+        <div class="privacy-section-label" style="color:#185FA5;">How matching works</div>
+        <p class="privacy-text">Each potential partner is scored against your profile across five dimensions. Scores are combined into an overall match percentage shown on each card. Click any percentage to see the full breakdown.</p>
+      </div>
+
+      <div class="about-scoring-table">
+        <div class="about-score-row">
+          <div class="about-score-label">Grade compatibility</div>
+          <div class="about-score-bar-wrap"><div class="about-score-bar" style="width:100%;background:#3B6D11;"></div></div>
+          <div class="about-score-weight" id="about-w-grade">40 pts</div>
+          <div class="about-score-note">Same grade = full points. 1 grade apart = reduced score with warning. 2+ grades apart = not shown (job shares require same grade).</div>
+        </div>
+        <div class="about-score-row">
+          <div class="about-score-label">Role fit</div>
+          <div class="about-score-bar-wrap"><div class="about-score-bar" style="width:62%;background:#4a88cc;"></div></div>
+          <div class="about-score-weight" id="about-w-role">25 pts</div>
+          <div class="about-score-note">Any shared role type between your preferences and theirs.</div>
+        </div>
+        <div class="about-score-row">
+          <div class="about-score-label">Directorate</div>
+          <div class="about-score-bar-wrap"><div class="about-score-bar" style="width:62%;background:#4a88cc;"></div></div>
+          <div class="about-score-weight" id="about-w-dir">25 pts</div>
+          <div class="about-score-note">Shared directorate interests. Bonus points if multiple areas match.</div>
+        </div>
+        <div class="about-score-row">
+          <div class="about-score-label">Day pattern</div>
+          <div class="about-score-bar-wrap"><div class="about-score-bar" style="width:37%;background:#854F0B;"></div></div>
+          <div class="about-score-weight" id="about-w-days">15 pts</div>
+          <div class="about-score-note">Complementary days (minimal overlap, good week coverage) score highest.</div>
+        </div>
+        <div class="about-score-row">
+          <div class="about-score-label">Working style</div>
+          <div class="about-score-bar-wrap"><div class="about-score-bar" style="width:25%;background:#854F0B;"></div></div>
+          <div class="about-score-weight" id="about-w-style">10 pts</div>
+          <div class="about-score-note">Clean handover vs collaborative vs flexible. Flexible always scores points.</div>
+        </div>
+      </div>
+
+      <div class="privacy-section" style="margin-top:14px;">
+        <div class="privacy-section-label" style="color:#185FA5;">What happens when you connect</div>
+        <p class="privacy-text">Clicking &ldquo;Request&rdquo; sends a signal to the other person. If they also express interest, you both see a notification. From there, you reach out directly &mdash; PairUp does not send messages on your behalf. The connection is purely a signal that both of you are open to a conversation.</p>
+      </div>
+
+      <div class="privacy-section">
+        <div class="privacy-section-label" style="color:#185FA5;">Tips for getting good matches</div>
+        <p class="privacy-text">Select a wide range of roles and directorates you&rsquo;d genuinely consider &mdash; the matching works best when preferences aren&rsquo;t too narrow. Be realistic about your working days. Location matters less than grade and role fit, but it&rsquo;s worth knowing before you reach out.</p>
+      </div>
+
+      <div class="privacy-footer">
+        Built for the FCDO Flexible Working Network &middot; Questions? <strong>flexible.working@fcdo.gov.uk</strong>
+      </div>
+    </div>
+  </div>
+
+  <!-- Admin modal -->
+  <div class="modal-overlay" id="adminOverlay" onclick="closeAdminIfBg(event)">
+    <div class="modal-box admin-modal-box">
+      <button class="modal-close" onclick="closeAdmin()">x</button>
+      <div class="privacy-modal-header">
+        <svg width="20" height="20" viewBox="0 0 14 14" fill="none" style="flex-shrink:0;">
+          <circle cx="7" cy="7" r="2" stroke="#854F0B" stroke-width="1.3"/>
+          <path d="M7 1v1.5M7 11.5V13M1 7h1.5M11.5 7H13M2.93 2.93l1.06 1.06M10.01 10.01l1.06 1.06M2.93 11.07l1.06-1.06M10.01 3.99l1.06-1.06" stroke="#854F0B" stroke-width="1.3" stroke-linecap="round"/>
+        </svg>
+        <div>
+          <div class="privacy-modal-title">Admin — matching weights</div>
+          <div class="privacy-modal-sub">Adjust how each factor contributes to the match score</div>
+        </div>
+      </div>
+
+      <div class="admin-note">Changes take effect immediately and persist across sessions. Staff scores are recalculated on next page load or refresh.</div>
+
+      <div class="admin-weights" id="adminWeights"></div>
+
+      <div class="admin-grade-section">
+        <div class="admin-weight-label">Grade mismatch penalty (1 grade apart)</div>
+        <div class="admin-grade-controls">
+          <label class="admin-radio"><input type="radio" name="gradePenalty" value="hard" id="gp-hard"> <span>Hard exclude</span> <span class="admin-radio-note">Don&rsquo;t show at all</span></label>
+          <label class="admin-radio"><input type="radio" name="gradePenalty" value="heavy" id="gp-heavy"> <span>Heavy penalty</span> <span class="admin-radio-note">Score 10 pts (default)</span></label>
+          <label class="admin-radio"><input type="radio" name="gradePenalty" value="light" id="gp-light"> <span>Light penalty</span> <span class="admin-radio-note">Score 20 pts</span></label>
+          <label class="admin-radio"><input type="radio" name="gradePenalty" value="none" id="gp-none"> <span>No penalty</span> <span class="admin-radio-note">Full 40 pts</span></label>
+        </div>
+      </div>
+
+      <div class="admin-total-row">
+        <span class="admin-total-label">Maximum possible score:</span>
+        <span class="admin-total-val" id="adminTotalScore">115 pts</span>
+      </div>
+
+      <div class="admin-actions">
+        <button class="admin-reset-btn" id="adminResetBtn">Reset to defaults</button>
+        <button class="admin-save-btn" id="adminSaveBtn">Save &amp; apply</button>
+      </div>
+
+      <div class="admin-passphrase-section">
+        <button class="admin-lock-btn" id="adminLockBtn">Lock admin panel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Admin unlock dialog -->
+  <div class="modal-overlay" id="adminUnlockOverlay" onclick="closeUnlockIfBg(event)">
+    <div class="modal-box" style="max-width:360px;text-align:center;padding:32px 28px;">
+      <button class="modal-close" onclick="closeUnlock()">x</button>
+      <div style="font-size:28px;margin-bottom:12px;">🔐</div>
+      <div style="font-size:15px;font-weight:700;color:#111;margin-bottom:6px;">Admin access</div>
+      <div style="font-size:13px;color:#888;margin-bottom:20px;">Enter the admin passphrase to access matching weight settings.</div>
+      <input type="password" id="adminPassInput" class="text-input" placeholder="Passphrase" style="text-align:center;margin-bottom:12px;">
+      <button class="admin-save-btn" id="adminPassSubmit" style="width:100%;">Unlock</button>
+      <div id="adminPassError" style="font-size:12px;color:#C43030;margin-top:10px;display:none;">Incorrect passphrase.</div>
+    </div>
+  </div>
+
   <!-- Version -->
-  <div class="app-version">v1.01</div>
+  <div class="app-version">v1.04</div>
 
   <script src="data.js"></script>
   <script src="app.js"></script>

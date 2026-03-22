@@ -259,6 +259,7 @@ body {
 .tag { font-size: 11px; font-weight: 500; padding: 2px 9px; border-radius: 8px; }
 .tag-match { background: #d8efc4; color: #27500A; }
 .tag-neutral { background: #eeede8; color: #666; }
+.tag-grade-warn { background: #fff3cd; color: #856404; border: 1px solid #ffc107; font-weight: 600; cursor: help; }
 
 /* Status line */
 .card-status { font-size: 11px; font-weight: 500; color: #aaa; display: flex; align-items: center; gap: 5px; margin-top: 4px; }
@@ -410,3 +411,90 @@ body {
   text-align: center; font-size: 11px; color: #ccc;
   padding: 10px 0 20px; user-select: none; letter-spacing: 0.3px;
 }
+
+/* ─── About button ─────────────────────────────────────────────────── */
+.about-btn {
+  display: flex; align-items: center; gap: 5px;
+  padding: 6px 12px; border-radius: 7px;
+  border: 1px solid rgba(0,0,0,0.13); background: transparent;
+  color: #666; font-size: 12px; font-weight: 600; cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+.about-btn:hover { background: #daeaf8; color: #0C447C; border-color: #9cc7f0; }
+
+/* ─── Admin button ─────────────────────────────────────────────────── */
+.admin-btn {
+  display: flex; align-items: center; gap: 5px;
+  padding: 6px 12px; border-radius: 7px;
+  border: 1px solid rgba(0,0,0,0.13); background: transparent;
+  color: #854F0B; font-size: 12px; font-weight: 600; cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+  border-color: #FAC775;
+}
+.admin-btn:hover { background: #FAEEDA; }
+
+/* ─── About modal scoring table ────────────────────────────────────── */
+.about-scoring-table { display: flex; flex-direction: column; gap: 10px; margin: 4px 0 8px; }
+.about-score-row { display: grid; grid-template-columns: 110px 1fr 46px; grid-template-rows: auto auto; gap: 2px 8px; align-items: center; }
+.about-score-label { font-size: 12px; font-weight: 600; color: #444; }
+.about-score-bar-wrap { height: 7px; background: #eee; border-radius: 4px; overflow: hidden; }
+.about-score-bar { height: 100%; border-radius: 4px; transition: width 0.4s ease; }
+.about-score-weight { font-size: 12px; font-weight: 700; color: #555; text-align: right; }
+.about-score-note { grid-column: 1 / -1; font-size: 11px; color: #999; line-height: 1.5; padding-left: 2px; }
+
+/* ─── Admin modal ──────────────────────────────────────────────────── */
+.admin-modal-box { max-width: 520px; max-height: calc(100vh - 80px); overflow-y: auto; }
+.admin-note {
+  font-size: 12px; color: #854F0B; background: #FAEEDA;
+  border: 1px solid #FAC775; border-radius: 7px; padding: 9px 12px; margin-bottom: 18px; line-height: 1.5;
+}
+.admin-weights { display: flex; flex-direction: column; gap: 14px; margin-bottom: 18px; }
+.admin-weight-row { background: #fafaf7; border: 1px solid rgba(0,0,0,0.08); border-radius: 8px; padding: 12px 14px; }
+.admin-weight-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 3px; }
+.admin-weight-label { font-size: 13px; font-weight: 600; color: #222; }
+.admin-weight-val { font-size: 13px; font-weight: 700; color: #185FA5; min-width: 44px; text-align: right; }
+.admin-weight-hint { font-size: 11px; color: #aaa; margin-bottom: 9px; line-height: 1.5; }
+.admin-slider-row { display: flex; align-items: center; gap: 8px; }
+.admin-slider { flex: 1; accent-color: #4a88cc; }
+.admin-slider-min, .admin-slider-max { font-size: 11px; color: #bbb; min-width: 18px; }
+.admin-slider-max { text-align: right; }
+.admin-default-btn {
+  font-size: 11px; font-weight: 600; color: #aaa; background: none;
+  border: 1px solid #ddd; border-radius: 5px; padding: 3px 8px; cursor: pointer;
+  white-space: nowrap;
+}
+.admin-default-btn:hover { color: #555; background: #f0f0ee; }
+
+.admin-grade-section {
+  background: #fafaf7; border: 1px solid rgba(0,0,0,0.08); border-radius: 8px;
+  padding: 12px 14px; margin-bottom: 16px;
+}
+.admin-grade-controls { display: flex; flex-direction: column; gap: 7px; margin-top: 8px; }
+.admin-radio { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; color: #333; }
+.admin-radio input { accent-color: #4a88cc; cursor: pointer; }
+.admin-radio span:first-of-type { font-weight: 600; }
+.admin-radio-note { font-size: 11px; color: #aaa; margin-left: 2px; }
+
+.admin-total-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 0; border-top: 1px solid #eee; border-bottom: 1px solid #eee; margin-bottom: 14px;
+}
+.admin-total-label { font-size: 13px; font-weight: 600; color: #555; }
+.admin-total-val { font-size: 16px; font-weight: 700; color: #185FA5; }
+
+.admin-actions { display: flex; gap: 10px; margin-bottom: 14px; }
+.admin-save-btn {
+  flex: 1; padding: 9px 16px; background: #4a88cc; color: #fff;
+  border: none; border-radius: 7px; font-size: 13px; font-weight: 700; cursor: pointer;
+}
+.admin-save-btn:hover { background: #3a72b0; }
+.admin-reset-btn {
+  padding: 9px 16px; background: transparent; color: #888;
+  border: 1px solid #ddd; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.admin-reset-btn:hover { background: #f5f4f0; color: #555; }
+.admin-passphrase-section { text-align: center; }
+.admin-lock-btn {
+  font-size: 12px; color: #bbb; background: none; border: none; cursor: pointer; padding: 4px 8px;
+}
+.admin-lock-btn:hover { color: #888; text-decoration: underline; }

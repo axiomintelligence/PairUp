@@ -87,94 +87,114 @@ function rehydrateTimers() {
   });
 }
 
-// ─── Matching ────────────────────────────────────────────────────────────────
+// ─── Matching weights (admin-adjustable) ─────────────────────────────────────
 
-const MAX_SCORE = 115;
+const WEIGHTS_KEY = 'pairup_weights_v1';
+const DEFAULT_WEIGHTS = {
+  grade:  40,   // same grade
+  role:   25,   // any role overlap
+  dir:    25,   // directorate overlap (max with bonus)
+  days:   15,   // complementary day pattern
+  style:  10,   // matching working style
+  // grade mismatch penalty mode: 'hard'|'heavy'|'light'|'none'
+  gradePenalty: 'heavy',
+};
+
+function loadWeights() {
+  try {
+    const raw = localStorage.getItem(WEIGHTS_KEY);
+    return raw ? { ...DEFAULT_WEIGHTS, ...JSON.parse(raw) } : { ...DEFAULT_WEIGHTS };
+  } catch(e) { return { ...DEFAULT_WEIGHTS }; }
+}
+
+function saveWeights(w) {
+  localStorage.setItem(WEIGHTS_KEY, JSON.stringify(w));
+}
+
+let W = loadWeights();
+
+function maxPossibleScore() {
+  return W.grade + W.role + W.dir + W.days + W.style;
+}
+
+// ─── Matching ────────────────────────────────────────────────────────────────
 
 function scoreMatch(user, candidate) {
   let score = 0;
   const breakdown = [];
 
-  // Grade: same = 40pts, ±1 = 25, ±2 = 10
+  // Grade
   const uIdx = GRADE_IDX[user.grade] ?? 0;
   const cIdx = GRADE_IDX[candidate.grade] ?? 0;
   const gradeDiff = Math.abs(uIdx - cIdx);
   let gradeScore = 0;
-  if (gradeDiff === 0) gradeScore = 40;
-  else if (gradeDiff === 1) gradeScore = 25;
-  else if (gradeDiff === 2) gradeScore = 10;
+  let gradeNote = '';
+  if (gradeDiff === 0) {
+    gradeScore = W.grade; gradeNote = 'Same grade';
+  } else if (gradeDiff === 1) {
+    const penaltyMap = { hard: 0, heavy: Math.round(W.grade * 0.25), light: Math.round(W.grade * 0.5), none: W.grade };
+    gradeScore = penaltyMap[W.gradePenalty] ?? Math.round(W.grade * 0.25);
+    gradeNote = 'Grade mismatch — 1 level apart';
+  } else {
+    gradeScore = 0; gradeNote = 'Grade mismatch — too far apart';
+  }
   score += gradeScore;
-  breakdown.push({
-    label: 'Grade',
-    score: gradeScore,
-    max: 40,
-    note: gradeDiff === 0 ? 'Same grade' : gradeDiff === 1 ? '1 grade apart' : gradeDiff === 2 ? '2 grades apart' : 'Very different grades'
-  });
+  breakdown.push({ label: 'Grade', score: gradeScore, max: W.grade, note: gradeNote, gradeWarning: gradeDiff === 1, gradeExclude: gradeDiff >= 2 });
 
-  // Role overlap: 25pts if any shared
+  // Role overlap
   const roleOverlap = user.roles.filter(r => candidate.roles.includes(r));
-  const roleScore = roleOverlap.length > 0 ? 25 : 0;
+  const roleScore = roleOverlap.length > 0 ? W.role : 0;
   score += roleScore;
-  breakdown.push({
-    label: 'Role fit',
-    score: roleScore,
-    max: 25,
-    note: roleOverlap.length > 0 ? roleOverlap.slice(0,2).join(', ') : 'No roles in common'
-  });
+  breakdown.push({ label: 'Role fit', score: roleScore, max: W.role, note: roleOverlap.length > 0 ? roleOverlap.slice(0,2).join(', ') : 'No roles in common' });
 
-  // Directorate: 20pts base + 5 bonus for multiple
+  // Directorate
   const dirOverlap = user.directorates.filter(d =>
     d === 'Open to any' || candidate.directorates.includes(d) || candidate.directorates.includes('Open to any')
   );
   let dirScore = 0;
-  if (dirOverlap.length > 0) { dirScore = 20; if (dirOverlap.length > 1) dirScore = 25; }
+  if (dirOverlap.length > 0) { dirScore = Math.round(W.dir * 0.8); if (dirOverlap.length > 1) dirScore = W.dir; }
   score += dirScore;
   const displayDirs = dirOverlap.filter(d => d !== 'Open to any');
-  breakdown.push({
-    label: 'Directorate',
-    score: dirScore,
-    max: 25,
-    note: displayDirs.length > 0 ? displayDirs.slice(0,2).join(', ') : dirOverlap.includes('Open to any') ? 'Open to any' : 'No overlap'
-  });
+  breakdown.push({ label: 'Directorate', score: dirScore, max: W.dir, note: displayDirs.length > 0 ? displayDirs.slice(0,2).join(', ') : dirOverlap.includes('Open to any') ? 'Open to any' : 'No overlap' });
 
-  // Days complementarity
+  // Days
   const userDays = new Set(user.days);
   const candDays = new Set(candidate.days);
   const overlapCount = [...userDays].filter(d => candDays.has(d)).length;
   const totalCoverage = new Set([...userDays, ...candDays]).size;
   let dayScore = 0;
   let dayNote = '';
-  if (overlapCount === 0 && totalCoverage >= 4) { dayScore = 15; dayNote = 'Excellent coverage'; }
-  else if (overlapCount <= 1 && totalCoverage >= 4) { dayScore = 10; dayNote = 'Good coverage'; }
-  else if (overlapCount <= 2) { dayScore = 5; dayNote = 'Partial overlap'; }
+  if (overlapCount === 0 && totalCoverage >= 4) { dayScore = W.days; dayNote = 'Excellent coverage'; }
+  else if (overlapCount <= 1 && totalCoverage >= 4) { dayScore = Math.round(W.days * 0.67); dayNote = 'Good coverage'; }
+  else if (overlapCount <= 2) { dayScore = Math.round(W.days * 0.33); dayNote = 'Partial overlap'; }
   else { dayNote = 'Heavy day overlap'; }
   score += dayScore;
-  breakdown.push({ label: 'Day pattern', score: dayScore, max: 15, note: dayNote });
+  breakdown.push({ label: 'Day pattern', score: dayScore, max: W.days, note: dayNote });
 
-  // Style: 10pts same, 5pts if flexible
+  // Style
   let styleScore = 0;
   let styleNote = '';
   if (user.style && candidate.style) {
-    if (user.style === candidate.style) { styleScore = 10; styleNote = 'Same style'; }
-    else if (user.style === 'flexible' || candidate.style === 'flexible' || user.style === 'unsure' || candidate.style === 'unsure') {
-      styleScore = 5; styleNote = 'Flexible';
+    if (user.style === candidate.style) { styleScore = W.style; styleNote = 'Same style'; }
+    else if (['flexible','unsure'].includes(user.style) || ['flexible','unsure'].includes(candidate.style)) {
+      styleScore = Math.round(W.style * 0.5); styleNote = 'Flexible';
     } else { styleNote = 'Different styles'; }
   } else { styleNote = 'Not specified'; }
   score += styleScore;
-  breakdown.push({ label: 'Working style', score: styleScore, max: 10, note: styleNote });
+  breakdown.push({ label: 'Working style', score: styleScore, max: W.style, note: styleNote });
 
-  // Matched tags for card display
+  // Tags
   const matched = [];
   if (roleOverlap.length > 0) roleOverlap.slice(0,2).forEach(r => matched.push({ label: r, type: 'role' }));
   if (displayDirs.length > 0) matched.push({ label: displayDirs[0], type: 'dir' });
-  if (dayScore >= 10) matched.push({ label: candidate.days.join(' '), type: 'days' });
-  if (styleScore === 10) matched.push({ label: styleLabel(candidate.style), type: 'style' });
+  if (dayScore >= Math.round(W.days * 0.67)) matched.push({ label: candidate.days.join(' '), type: 'days' });
+  if (styleScore === W.style) matched.push({ label: styleLabel(candidate.style), type: 'style' });
 
-  return { score: Math.min(score, MAX_SCORE), breakdown, matched };
+  return { score: Math.min(score, maxPossibleScore()), breakdown, matched, gradeDiff };
 }
 
 function scoreToPercent(score) {
-  return Math.round(Math.min((score / MAX_SCORE) * 100, 100));
+  return Math.round(Math.min((score / maxPossibleScore()) * 100, 100));
 }
 
 function scoreClass(pct) {
@@ -203,13 +223,13 @@ function locTagStyle(loc) {
 function getMatches() {
   if (!state.profile) return [];
   return DUMMY_PROFILES.map(p => ({ profile: p, ...scoreMatch(state.profile, p) }))
-    .filter(m => m.score >= 10)
+    .filter(m => !(m.gradeDiff >= 2) && !(m.gradeDiff === 1 && W.gradePenalty === 'hard'))
     .sort((a, b) => b.score - a.score);
 }
 
 // ─── Filter state ─────────────────────────────────────────────────────────────
 
-const filters = { days: [], loc: null, style: null, minScore: 0 };
+const filters = { days: [], loc: null, style: null, minScore: 0, grade: null };
 
 function applyFilters(matches) {
   return matches.filter(m => {
@@ -218,12 +238,13 @@ function applyFilters(matches) {
     if (filters.loc && p.location !== filters.loc) return false;
     if (filters.style && p.style !== filters.style && p.style !== 'flexible' && p.style !== 'unsure') return false;
     if (filters.minScore > 0 && scoreToPercent(m.score) < filters.minScore) return false;
+    if (filters.grade && p.grade !== filters.grade) return false;
     return true;
   });
 }
 
 function hasActiveFilters() {
-  return filters.days.length > 0 || filters.loc || filters.style || filters.minScore > 0;
+  return filters.days.length > 0 || filters.loc || filters.style || filters.minScore > 0 || filters.grade;
 }
 
 // ─── Build a match/connection card ───────────────────────────────────────────
@@ -250,6 +271,12 @@ function buildCard(matchObj, context) {
 
   // Location tag always shown
   const locTag = `<span class="tag" style="${locTagStyle(p.location)}">${locDisplay}</span>`;
+
+  // Grade warning tag — shown when 1 grade apart
+  const gradeDiff = matchObj.gradeDiff ?? 0;
+  const gradeWarningTag = gradeDiff === 1
+    ? `<span class="tag tag-grade-warn" title="Job shares typically require the same grade. This person is 1 grade away — possible in some posts but worth discussing.">⚠ Grade mismatch</span>`
+    : '';
 
   // Name row extras
   let nameRowExtra = '';
@@ -308,7 +335,7 @@ function buildCard(matchObj, context) {
           <span class="card-grade">${p.grade}</span>
           ${nameRowExtra}
         </div>
-        <div class="card-tags">${tagChips}${locTag}</div>
+        <div class="card-tags">${tagChips}${locTag}${gradeWarningTag}</div>
         ${statusLine}
       </div>
       <div class="card-right">${rightButtons}</div>
@@ -859,7 +886,7 @@ document.getElementById('filterToggleBtn').addEventListener('click', () => {
 });
 
 document.getElementById('filterClearBtn').addEventListener('click', () => {
-  filters.days = []; filters.loc = null; filters.style = null; filters.minScore = 0;
+  filters.days = []; filters.loc = null; filters.style = null; filters.minScore = 0; filters.grade = null;
   document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('selected'));
   document.querySelector('#filterScore [data-val="0"]').classList.add('selected');
   document.getElementById('filterClearBtn').style.display = 'none';
@@ -875,6 +902,13 @@ function setupFilterChips(containerId, onSelect) {
     });
   });
 }
+
+setupFilterChips('filterGrade', chip => {
+  const was = chip.classList.contains('selected');
+  document.querySelectorAll('#filterGrade .filter-chip').forEach(c => c.classList.remove('selected'));
+  if (!was) { chip.classList.add('selected'); filters.grade = chip.dataset.val; }
+  else filters.grade = null;
+});
 
 setupFilterChips('filterDays', chip => {
   chip.classList.toggle('selected');
@@ -989,3 +1023,179 @@ function closePrivacy() {
 function closePrivacyIfBg(e) {
   if (e.target === document.getElementById('privacyOverlay')) closePrivacy();
 }
+
+// ─── About modal ──────────────────────────────────────────────────────────────
+
+document.getElementById('aboutBtn').addEventListener('click', () => {
+  updateAboutWeightDisplay();
+  document.getElementById('aboutOverlay').classList.add('open');
+});
+
+function closeAbout() { document.getElementById('aboutOverlay').classList.remove('open'); }
+function closeAboutIfBg(e) { if (e.target === document.getElementById('aboutOverlay')) closeAbout(); }
+
+function updateAboutWeightDisplay() {
+  // Update the weight numbers shown in the About modal to reflect current admin settings
+  const total = maxPossibleScore();
+  const pairs = [
+    ['about-w-grade', W.grade],
+    ['about-w-role',  W.role],
+    ['about-w-dir',   W.dir],
+    ['about-w-days',  W.days],
+    ['about-w-style', W.style],
+  ];
+  pairs.forEach(([id, val]) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val + ' pts';
+  });
+  // Update bar widths proportional to grade weight
+  const rows = document.querySelectorAll('.about-score-bar');
+  const weights = [W.grade, W.role, W.dir, W.days, W.style];
+  rows.forEach((bar, i) => { bar.style.width = Math.round((weights[i] / W.grade) * 100) + '%'; });
+}
+
+// ─── Admin modal ──────────────────────────────────────────────────────────────
+
+const ADMIN_PASS = 'pairup-admin';
+
+function isAdminUnlocked() { return sessionStorage.getItem('pairup_admin') === '1'; }
+
+function checkAndShowAdmin() {
+  if (isAdminUnlocked()) {
+    openAdminPanel();
+  } else {
+    document.getElementById('adminUnlockOverlay').classList.add('open');
+    document.getElementById('adminPassInput').value = '';
+    document.getElementById('adminPassError').style.display = 'none';
+    setTimeout(() => document.getElementById('adminPassInput').focus(), 100);
+  }
+}
+
+document.getElementById('adminBtn').addEventListener('click', checkAndShowAdmin);
+
+document.getElementById('adminPassSubmit').addEventListener('click', () => {
+  const val = document.getElementById('adminPassInput').value.trim();
+  if (val === ADMIN_PASS) {
+    sessionStorage.setItem('pairup_admin', '1');
+    closeUnlock();
+    openAdminPanel();
+  } else {
+    document.getElementById('adminPassError').style.display = 'block';
+    document.getElementById('adminPassInput').value = '';
+  }
+});
+
+document.getElementById('adminPassInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('adminPassSubmit').click();
+});
+
+function closeUnlock() { document.getElementById('adminUnlockOverlay').classList.remove('open'); }
+function closeUnlockIfBg(e) { if (e.target === document.getElementById('adminUnlockOverlay')) closeUnlock(); }
+
+function openAdminPanel() {
+  buildAdminWeightSliders();
+  syncGradePenaltyRadios();
+  updateAdminTotal();
+  document.getElementById('adminOverlay').classList.add('open');
+}
+
+function closeAdmin() { document.getElementById('adminOverlay').classList.remove('open'); }
+function closeAdminIfBg(e) { if (e.target === document.getElementById('adminOverlay')) closeAdmin(); }
+
+const WEIGHT_DEFS = [
+  { key: 'grade', label: 'Grade compatibility', min: 10, max: 60, step: 5,
+    hint: 'Points awarded when two candidates share the same grade. This is the most important factor for job shares.' },
+  { key: 'role',  label: 'Role fit', min: 5, max: 50, step: 5,
+    hint: 'Points when at least one role type is shared between the two profiles.' },
+  { key: 'dir',   label: 'Directorate overlap', min: 5, max: 50, step: 5,
+    hint: 'Points for shared directorate interests. A bonus is added if multiple areas match.' },
+  { key: 'days',  label: 'Day pattern', min: 5, max: 40, step: 5,
+    hint: 'Points for complementary working days (non-overlapping, good weekly coverage).' },
+  { key: 'style', label: 'Working style', min: 0, max: 30, step: 5,
+    hint: 'Points when both people prefer the same working style (clean handover, collaborative, etc).' },
+];
+
+function buildAdminWeightSliders() {
+  const container = document.getElementById('adminWeights');
+  container.innerHTML = '';
+  WEIGHT_DEFS.forEach(def => {
+    const row = document.createElement('div');
+    row.className = 'admin-weight-row';
+    row.innerHTML = `
+      <div class="admin-weight-header">
+        <span class="admin-weight-label">${def.label}</span>
+        <span class="admin-weight-val" id="aval-${def.key}">${W[def.key]} pts</span>
+      </div>
+      <div class="admin-weight-hint">${def.hint}</div>
+      <div class="admin-slider-row">
+        <span class="admin-slider-min">${def.min}</span>
+        <input type="range" class="admin-slider" id="aslider-${def.key}"
+          min="${def.min}" max="${def.max}" step="${def.step}" value="${W[def.key]}">
+        <span class="admin-slider-max">${def.max}</span>
+        <button class="admin-default-btn" data-key="${def.key}" data-default="${DEFAULT_WEIGHTS[def.key]}">Default</button>
+      </div>`;
+    container.appendChild(row);
+
+    const slider = row.querySelector(`#aslider-${def.key}`);
+    const valEl  = row.querySelector(`#aval-${def.key}`);
+    slider.addEventListener('input', () => {
+      W[def.key] = parseInt(slider.value, 10);
+      valEl.textContent = W[def.key] + ' pts';
+      updateAdminTotal();
+    });
+    row.querySelector('.admin-default-btn').addEventListener('click', e => {
+      const k = e.target.dataset.key;
+      const d = parseInt(e.target.dataset.default, 10);
+      W[k] = d;
+      document.getElementById('aslider-' + k).value = d;
+      document.getElementById('aval-' + k).textContent = d + ' pts';
+      updateAdminTotal();
+    });
+  });
+}
+
+function syncGradePenaltyRadios() {
+  const val = W.gradePenalty || 'heavy';
+  const radio = document.querySelector(`input[name="gradePenalty"][value="${val}"]`);
+  if (radio) radio.checked = true;
+  document.querySelectorAll('input[name="gradePenalty"]').forEach(r => {
+    r.addEventListener('change', () => { W.gradePenalty = r.value; updateAdminTotal(); });
+  });
+}
+
+function updateAdminTotal() {
+  document.getElementById('adminTotalScore').textContent = maxPossibleScore() + ' pts';
+}
+
+document.getElementById('adminSaveBtn').addEventListener('click', () => {
+  saveWeights(W);
+  closeAdmin();
+  // Re-render active tab with new weights
+  const active = document.querySelector('.tab-content.active');
+  if (active.id === 'tab-matches') renderMatches();
+  if (active.id === 'tab-connections') renderConnections();
+  updateAboutWeightDisplay();
+});
+
+document.getElementById('adminResetBtn').addEventListener('click', () => {
+  Object.assign(W, DEFAULT_WEIGHTS);
+  buildAdminWeightSliders();
+  syncGradePenaltyRadios();
+  updateAdminTotal();
+});
+
+document.getElementById('adminLockBtn').addEventListener('click', () => {
+  sessionStorage.removeItem('pairup_admin');
+  closeAdmin();
+});
+
+// Show admin button if already unlocked from a previous action this session
+if (isAdminUnlocked()) {
+  document.getElementById('adminBtn').style.display = 'flex';
+}
+
+// Secret: triple-click the version number to reveal admin button (UX hint for demo)
+document.querySelector('.app-version').addEventListener('dblclick', () => {
+  document.getElementById('adminBtn').style.display = 'flex';
+  document.getElementById('adminBtn').title = 'Admin settings (click to unlock)';
+});
