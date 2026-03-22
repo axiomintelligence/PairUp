@@ -230,11 +230,12 @@ body {
 .card-left { flex: 1; min-width: 0; }
 .card-right {
   display: grid;
-  grid-template-columns: auto auto;
+  grid-template-columns: 1fr 1fr;
   grid-template-rows: auto auto;
   gap: 5px 6px;
-  align-items: center;
+  align-items: stretch;
   flex-shrink: 0;
+  width: 260px;
 }
 
 .card-name-row { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; margin-bottom: 4px; }
@@ -246,8 +247,8 @@ body {
 /* Score pill — top-left of right grid, clickable, RAG coloured */
 .score-pill {
   font-size: 12px; font-weight: 600; padding: 5px 11px; border-radius: 10px;
-  white-space: nowrap; cursor: pointer; border: none; display: inline-block;
-  transition: opacity 0.1s; text-align: center;
+  white-space: nowrap; cursor: pointer; border: none; display: block;
+  transition: opacity 0.1s; text-align: center; width: 100%;
 }
 .score-pill:hover { opacity: 0.75; }
 .score-high { background: #d8efc4; color: #27500A; }
@@ -273,9 +274,10 @@ body {
 
 /* Right-grid buttons — primary action top-right, score top-left, links bottom row */
 .card-btn {
-  padding: 6px 14px; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer;
+  padding: 6px 10px; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer;
   border: 1px solid rgba(0,0,0,0.15); background: transparent; color: #555;
   white-space: nowrap; transition: background 0.1s, color 0.1s; text-align: center;
+  width: 100%; display: block;
 }
 .card-btn:hover { background: #f0f0ee; }
 .card-btn-primary { background: #4a88cc; color: #fff; border-color: #4a88cc; }
@@ -289,17 +291,27 @@ body {
 .card-btn-withdraw { color: #854F0B; border: 1px solid #FAC775; background: #fef0d8; padding: 5px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
 .card-btn-withdraw:hover { background: #fde3b0; }
 .card-btn-email {
-  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
-  padding: 6px 14px; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+  padding: 6px 10px; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer;
   border: 1px solid #9cc7f0; background: #daeaf8; color: #0C447C;
-  text-decoration: none; white-space: nowrap;
+  text-decoration: none; white-space: nowrap; width: 100%;
 }
 .card-btn-email:hover { background: #c4dcf5; }
-.card-btn-more {
-  font-size: 12px; font-weight: 500; color: #185FA5; background: none; border: none;
-  cursor: pointer; text-align: right; padding: 2px 4px; white-space: nowrap;
+.card-btn-profile {
+  font-size: 12px; font-weight: 600; color: #185FA5;
+  background: transparent; border: 1px solid #9cc7f0;
+  border-radius: 7px; padding: 5px 10px; cursor: pointer;
+  white-space: nowrap; text-align: center; width: 100%; display: block;
 }
-.card-btn-more:hover { text-decoration: underline; }
+.card-btn-profile:hover { background: #daeaf8; }
+
+.card-btn-secondary {
+  font-size: 12px; font-weight: 500; color: #aaa;
+  border: 1px solid #e0e0da; background: transparent;
+  border-radius: 7px; padding: 5px 10px; cursor: pointer;
+  white-space: nowrap; text-align: center; width: 100%; display: block;
+}
+.card-btn-secondary:hover { color: #666; background: #f5f4f0; }
 
 /* ─── Profile / Score modal ────────────────────────────────────────── */
 .modal-overlay {
