@@ -16,13 +16,22 @@
         </div>
         <span class="brand-tag">Job share matcher</span>
       </div>
-      <button class="refresh-btn" id="refreshBtn" title="Refresh matches">
-        <svg width="14" height="14" viewBox="0 0 15 15" fill="none">
-          <path d="M1.5 7.5a6 6 0 1 0 6-6 6 6 0 0 0-4.24 1.76" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-          <path d="M1.5 3v4.5H6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        <span>Refresh</span>
-      </button>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button class="privacy-btn" id="privacyBtn" title="Privacy and data policy">
+          <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+            <path d="M7 1.5L2 3.5v3.5c0 3 2.2 5.5 5 6 2.8-.5 5-3 5-6V3.5L7 1.5z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
+            <path d="M7 5v2M7 8v.8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+          </svg>
+          <span>Privacy</span>
+        </button>
+        <button class="refresh-btn" id="refreshBtn" title="Refresh matches">
+          <svg width="14" height="14" viewBox="0 0 15 15" fill="none">
+            <path d="M1.5 7.5a6 6 0 1 0 6-6 6 6 0 0 0-4.24 1.76" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            <path d="M1.5 3v4.5H6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span>Refresh</span>
+        </button>
+      </div>
     </div>
     <nav class="nav-tabs">
       <button class="nav-tab active" data-tab="profile">
@@ -276,6 +285,60 @@
   <div class="modal-overlay" id="modalOverlay" onclick="closeModalIfBg(event)">
     <div class="modal-box" id="modalBox"></div>
   </div>
+
+  <!-- Privacy modal -->
+  <div class="modal-overlay" id="privacyOverlay" onclick="closePrivacyIfBg(event)">
+    <div class="modal-box privacy-modal-box">
+      <button class="modal-close" onclick="closePrivacy()">x</button>
+      <div class="privacy-modal-header">
+        <svg width="22" height="22" viewBox="0 0 14 14" fill="none" style="flex-shrink:0;">
+          <path d="M7 1.5L2 3.5v3.5c0 3 2.2 5.5 5 6 2.8-.5 5-3 5-6V3.5L7 1.5z" stroke="#4e8a2e" stroke-width="1.3" stroke-linejoin="round"/>
+          <path d="M7 5v2M7 8v.8" stroke="#4e8a2e" stroke-width="1.4" stroke-linecap="round"/>
+        </svg>
+        <div>
+          <div class="privacy-modal-title">Privacy and data policy</div>
+          <div class="privacy-modal-sub">FCDO PairUp &mdash; internal staff tool</div>
+        </div>
+      </div>
+
+      <div class="privacy-section">
+        <div class="privacy-section-label">How your data is stored</div>
+        <p class="privacy-text">All data you enter into PairUp is stored exclusively on FCDO internal systems hosted within the UK on Microsoft Azure infrastructure. No data is transferred to, stored on, or processed by any external third-party service or platform.</p>
+      </div>
+
+      <div class="privacy-section">
+        <div class="privacy-section-label">What this tool is for</div>
+        <p class="privacy-text">PairUp is solely for helping FCDO staff find compatible job share partners. Your profile data &mdash; name, grade, role preferences, working days, style, and location &mdash; is used only for this matching purpose. It will not be used for any other purpose.</p>
+      </div>
+
+      <div class="privacy-section">
+        <div class="privacy-section-label">Who can see your data</div>
+        <p class="privacy-text">Your profile is visible only to other staff who are also registered on PairUp, and only within the app. <strong>No information is shared with HR, line managers, or any other part of the organisation.</strong> Connection details are only exchanged when both parties have mutually expressed interest. The tool administrators can see aggregate statistics (e.g. number of users) but not individual profile contents.</p>
+      </div>
+
+      <div class="privacy-section">
+        <div class="privacy-section-label">Your rights and controls</div>
+        <p class="privacy-text">You can update or delete your profile at any time using the &ldquo;Delete my profile&rdquo; option. Deletion permanently removes all your data from the system. You are under no obligation to participate, and opting out has no bearing on your employment, performance, or any HR process.</p>
+      </div>
+
+      <div class="privacy-section">
+        <div class="privacy-section-label">GDPR compliance</div>
+        <p class="privacy-text">PairUp is operated under the lawful basis of <em>legitimate interests</em> (Article 6(1)(f) UK GDPR) &mdash; specifically, supporting staff mobility and flexible working. The data collected is limited to what is strictly necessary for matching (data minimisation), is not retained beyond active participation, and is held securely. A Data Protection Impact Assessment (DPIA) has been completed for this tool. If you have questions about how your data is handled, contact the FCDO Data Protection Officer.</p>
+      </div>
+
+      <div class="privacy-section">
+        <div class="privacy-section-label">Ethical commitments</div>
+        <p class="privacy-text">Participation in PairUp is entirely voluntary. The matching algorithm considers only work-related preferences you explicitly provide; it does not infer or use any protected characteristics. No automated decisions are made about your employment &mdash; the tool only suggests potential partners for you to consider. All matching is advisory and the final decision rests entirely with you.</p>
+      </div>
+
+      <div class="privacy-footer">
+        Questions? Contact <strong>flexible.working@fcdo.gov.uk</strong> or the FCDO Data Protection Officer.
+      </div>
+    </div>
+  </div>
+
+  <!-- Version -->
+  <div class="app-version">v1.01</div>
 
   <script src="data.js"></script>
   <script src="app.js"></script>

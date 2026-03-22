@@ -368,3 +368,45 @@ body {
   .nav-tabs { padding: 0 6px; }
   .nav-tab { padding: 8px 10px; font-size: 12px; gap: 4px; }
 }
+
+/* ─── Privacy button ───────────────────────────────────────────────── */
+.privacy-btn {
+  display: flex; align-items: center; gap: 5px;
+  padding: 6px 12px; border-radius: 7px;
+  border: 1px solid rgba(0,0,0,0.13); background: transparent;
+  color: #666; font-size: 12px; font-weight: 600; cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+.privacy-btn:hover { background: #eaf4e0; color: #3d6f23; border-color: #a8d884; }
+
+/* ─── Privacy modal ────────────────────────────────────────────────── */
+.privacy-modal-box {
+  max-width: 560px;
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+}
+.privacy-modal-header {
+  display: flex; align-items: flex-start; gap: 12px; margin-bottom: 20px;
+  padding-bottom: 16px; border-bottom: 1px solid #eee;
+}
+.privacy-modal-title { font-size: 16px; font-weight: 700; color: #111; margin-bottom: 2px; }
+.privacy-modal-sub { font-size: 12px; color: #999; }
+.privacy-section { margin-bottom: 16px; }
+.privacy-section-label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px;
+  color: #4e8a2e; margin-bottom: 5px;
+}
+.privacy-text { font-size: 13px; color: #444; line-height: 1.65; }
+.privacy-text strong { font-weight: 700; color: #222; }
+.privacy-text em { font-style: italic; }
+.privacy-footer {
+  margin-top: 18px; padding-top: 14px; border-top: 1px solid #eee;
+  font-size: 12px; color: #888; line-height: 1.6;
+}
+.privacy-footer strong { font-weight: 700; color: #555; }
+
+/* ─── Version number ───────────────────────────────────────────────── */
+.app-version {
+  text-align: center; font-size: 11px; color: #ccc;
+  padding: 10px 0 20px; user-select: none; letter-spacing: 0.3px;
+}

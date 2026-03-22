@@ -975,3 +975,17 @@ if (state.profile) {
 rehydrateTimers();
 updateBadges();
 updateCompleteness();
+
+// ─── Privacy modal ────────────────────────────────────────────────────────────
+
+document.getElementById('privacyBtn').addEventListener('click', () => {
+  document.getElementById('privacyOverlay').classList.add('open');
+});
+
+function closePrivacy() {
+  document.getElementById('privacyOverlay').classList.remove('open');
+}
+
+function closePrivacyIfBg(e) {
+  if (e.target === document.getElementById('privacyOverlay')) closePrivacy();
+}
