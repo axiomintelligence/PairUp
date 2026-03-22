@@ -953,10 +953,15 @@ function colourFilterChips() {
 
 function applyFilterChipColours() {
   document.querySelectorAll('.filter-chip').forEach(chip => {
-    if (!chip.classList.contains('selected') && chip.dataset.profileBg) {
+    if (chip.classList.contains('selected')) {
+      chip.style.background = '';  // clear inline — let CSS class take over
+      chip.style.color = '';
+    } else if (chip.dataset.profileBg) {
       chip.style.background = chip.dataset.profileBg;
-    } else if (!chip.classList.contains('selected')) {
+      chip.style.color = '';
+    } else {
       chip.style.background = '';
+      chip.style.color = '';
     }
   });
 }
