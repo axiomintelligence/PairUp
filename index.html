@@ -17,25 +17,25 @@
         <span class="brand-tag">Job share matcher</span>
       </div>
       <button class="refresh-btn" id="refreshBtn" title="Refresh matches">
-        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M1.5 7.5a6 6 0 1 0 6-6 6 6 0 0 0-4.24 1.76" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-          <path d="M1.5 3v4.5H6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+        <svg width="14" height="14" viewBox="0 0 15 15" fill="none">
+          <path d="M1.5 7.5a6 6 0 1 0 6-6 6 6 0 0 0-4.24 1.76" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          <path d="M1.5 3v4.5H6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
-        <span>Refresh matches</span>
+        <span>Refresh</span>
       </button>
     </div>
     <nav class="nav-tabs">
       <button class="nav-tab active" data-tab="profile">
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="4.5" r="2.5" stroke="currentColor" stroke-width="1.3"/><path d="M2 12c0-2.76 2.24-5 5-5s5 2.24 5 5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="4.5" r="2.5" stroke="currentColor" stroke-width="1.4"/><path d="M2 12c0-2.76 2.24-5 5-5s5 2.24 5 5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
         My profile
       </button>
       <button class="nav-tab" data-tab="matches">
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2.5C5.5 1 3 1.5 2 3.5S2 8 7 11.5C12 8 12 6 11 4s-2.5-3-4-2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+        <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M7 2.5C5.5 1 3 1.5 2 3.5S2 8 7 11.5C12 8 12 6 11 4s-2.5-3-4-2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>
         Matches
         <span class="tab-badge" id="matchBadge" style="display:none"></span>
       </button>
       <button class="nav-tab" data-tab="connections">
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="4" cy="5" r="2" stroke="currentColor" stroke-width="1.3"/><circle cx="10" cy="5" r="2" stroke="currentColor" stroke-width="1.3"/><path d="M1 12c0-1.66 1.34-3 3-3s3 1.34 3 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><path d="M7 12c0-1.66 1.34-3 3-3s3 1.34 3 3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+        <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><circle cx="4" cy="5" r="2" stroke="currentColor" stroke-width="1.4"/><circle cx="10" cy="5" r="2" stroke="currentColor" stroke-width="1.4"/><path d="M1 12c0-1.66 1.34-3 3-3s3 1.34 3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M7 12c0-1.66 1.34-3 3-3s3 1.34 3 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
         Connected
         <span class="tab-badge amber" id="connBadge" style="display:none"></span>
       </button>
@@ -49,10 +49,10 @@
       <div class="tab-inner">
         <div class="page-intro">
           <h1>Your job share profile</h1>
-          <p>Select what fits you. Potential matches see your name and preferences — contact details are only ever shared by you directly.</p>
+          <p>Select what fits you. Potential matches see your name and preferences.</p>
         </div>
 
-        <div class="profile-completeness" id="completeness">
+        <div class="profile-completeness">
           <div class="completeness-bar"><div class="completeness-fill" id="complFill"></div></div>
           <span class="completeness-label" id="complLabel">Profile incomplete</span>
         </div>
@@ -78,7 +78,7 @@
 
         <div class="form-section">
           <div class="form-label">Roles you'd consider <span class="required">*</span></div>
-          <div class="form-hint">Select your grade first — roles not available at your grade are greyed out. Click a group header to expand it.</div>
+          <div class="form-hint">Select your grade first — roles typically for higher grades are dashed but can still be selected. Click a group to expand it.</div>
           <div class="accordion" id="roleAccordion"></div>
           <div class="selected-roles-summary" id="selectedRolesSummary" style="display:none">
             <span class="summary-label">Selected:</span>
@@ -107,7 +107,7 @@
 
         <div class="form-section">
           <div class="form-label">Days I work <span class="required">*</span></div>
-          <div class="form-hint">Select your working days — we'll look for people with complementary patterns.</div>
+          <div class="form-hint">We'll look for complementary patterns to cover the full week.</div>
           <div class="days-grid" id="dayChips">
             <button class="chip day-chip" data-val="Mon">Mon</button>
             <button class="chip day-chip" data-val="Tue">Tue</button>
@@ -118,7 +118,7 @@
         </div>
 
         <div class="form-section">
-          <div class="form-label">Working style</div>
+          <div class="form-label">Working style <span class="required">*</span></div>
           <div class="style-grid" id="styleChips">
             <button class="style-card chip-single" data-val="clean">
               <div class="style-title">Clean handover</div>
@@ -131,6 +131,10 @@
             <button class="style-card chip-single" data-val="flexible">
               <div class="style-title">Flexible</div>
               <div class="style-desc">Happy to adapt to whoever I partner with</div>
+            </button>
+            <button class="style-card chip-single" data-val="unsure">
+              <div class="style-title">Not sure yet</div>
+              <div class="style-desc">Open to discussing what works best</div>
             </button>
           </div>
         </div>
@@ -154,7 +158,6 @@
           <button class="btn-save" id="saveProfile">Save profile &amp; find matches</button>
           <button class="btn-danger-soft" id="deleteProfile" style="display:none">Delete my profile</button>
         </div>
-
         <div class="save-status" id="saveStatus"></div>
       </div>
     </section>
@@ -166,19 +169,65 @@
           <div class="empty-icon">🔍</div>
           <div class="empty-title">Complete your profile first</div>
           <div class="empty-sub">Fill in your profile so we can find your best job share matches.</div>
-          <button class="btn-primary" onclick="switchTab('profile')">Go to my profile</button>
+          <button class="btn-primary-sm" onclick="switchTab('profile')">Go to my profile</button>
         </div>
         <div id="matchesContent" style="display:none">
-          <div class="inbound-section" id="inboundSection" style="display:none">
+          <div id="inboundSection" style="display:none">
             <div class="section-label">Requests for you</div>
             <div id="inboundCards"></div>
           </div>
+
+          <div class="filter-controls">
+            <button class="filter-toggle-btn" id="filterToggleBtn">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 2h10M3 6h6M5 10h2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+              Filter
+            </button>
+            <button class="filter-clear-btn" id="filterClearBtn" style="display:none">Clear filters</button>
+          </div>
+          <div class="filter-bar" id="filterBar">
+            <div class="filter-section">
+              <div class="filter-section-label">Must be able to work these days</div>
+              <div class="filter-chips" id="filterDays">
+                <button class="filter-chip" data-val="Mon">Mon</button>
+                <button class="filter-chip" data-val="Tue">Tue</button>
+                <button class="filter-chip" data-val="Wed">Wed</button>
+                <button class="filter-chip" data-val="Thu">Thu</button>
+                <button class="filter-chip" data-val="Fri">Fri</button>
+              </div>
+            </div>
+            <div class="filter-section">
+              <div class="filter-section-label">Location</div>
+              <div class="filter-chips" id="filterLoc">
+                <button class="filter-chip" data-val="London - KCS">London – KCS</button>
+                <button class="filter-chip" data-val="East Kilbride">East Kilbride</button>
+                <button class="filter-chip" data-val="Remote">Remote</button>
+                <button class="filter-chip" data-val="Overseas">Overseas</button>
+              </div>
+            </div>
+            <div class="filter-section">
+              <div class="filter-section-label">Working style (must match)</div>
+              <div class="filter-chips" id="filterStyle">
+                <button class="filter-chip" data-val="clean">Clean handover</button>
+                <button class="filter-chip" data-val="collaborative">Collaborative</button>
+                <button class="filter-chip" data-val="flexible">Flexible</button>
+              </div>
+            </div>
+            <div class="filter-section">
+              <div class="filter-section-label">Minimum match %</div>
+              <div class="filter-chips" id="filterScore">
+                <button class="filter-chip" data-val="40">40%+</button>
+                <button class="filter-chip" data-val="60">60%+</button>
+                <button class="filter-chip selected" data-val="0">All</button>
+              </div>
+            </div>
+          </div>
+
           <div class="section-label" id="suggestedLabel">Suggested matches</div>
           <div id="matchCards"></div>
           <div id="noMatches" class="empty-state" style="display:none">
             <div class="empty-icon">💡</div>
-            <div class="empty-title">No matches yet</div>
-            <div class="empty-sub">Try broadening your role or directorate preferences, or check back as more colleagues join.</div>
+            <div class="empty-title">No matches found</div>
+            <div class="empty-sub">Try adjusting your filters, or broaden your role and directorate preferences on your profile.</div>
           </div>
           <div class="show-dismissed-row" id="showDismissedRow" style="display:none">
             <button class="btn-ghost-small" id="showDismissedBtn">Show hidden profiles</button>
@@ -193,30 +242,38 @@
         <div id="connNoProfile" class="empty-state" style="display:none">
           <div class="empty-icon">🤝</div>
           <div class="empty-title">No connections yet</div>
-          <div class="empty-sub">Once you've set up your profile and sent or received connection requests, they'll appear here.</div>
-          <button class="btn-primary" onclick="switchTab('profile')">Set up profile</button>
+          <div class="empty-sub">Set up your profile and send connection requests to get started.</div>
+          <button class="btn-primary-sm" onclick="switchTab('profile')">Set up profile</button>
         </div>
         <div id="connContent" style="display:none">
-          <div id="newConnBanner" style="display:none" class="new-conn-banner"></div>
+          <div id="newConnBanner" class="new-conn-banner" style="display:none"></div>
+
           <div id="connectedSection" style="display:none">
             <div class="section-label">Connected</div>
             <div id="connectedCards"></div>
           </div>
+
           <div id="pendingSection" style="display:none">
             <div class="section-label">Pending — awaiting their response</div>
             <div id="pendingCards"></div>
           </div>
+
           <div id="connEmptyState" class="empty-state" style="display:none">
             <div class="empty-icon">🤝</div>
             <div class="empty-title">No connections yet</div>
             <div class="empty-sub">Head to Matches to send your first connection request.</div>
-            <button class="btn-primary" onclick="switchTab('matches')">View matches</button>
+            <button class="btn-primary-sm" onclick="switchTab('matches')">View matches</button>
           </div>
         </div>
       </div>
     </section>
 
   </main>
+
+  <!-- Profile / Score modal -->
+  <div class="modal-overlay" id="modalOverlay" onclick="closeModalIfBg(event)">
+    <div class="modal-box" id="modalBox"></div>
+  </div>
 
   <script src="data.js"></script>
   <script src="app.js"></script>
