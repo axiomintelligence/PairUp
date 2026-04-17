@@ -75,7 +75,15 @@
     <section id="tab-profile" class="tab-content active">
       <div class="tab-inner">
         <div class="page-intro">
-          <h1>Your job share profile</h1>
+          <div class="page-intro-row">
+            <h1>Your job share profile</h1>
+            <button type="button" class="btn-test-fill" id="testFillBtn" title="Populate all fields with sensible dummy data for testing">
+              <svg width="11" height="11" viewBox="0 0 12 12" fill="none" style="margin-right:4px;">
+                <path d="M6 1.5v4.5l3 1.5M6 10.5a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+              </svg>
+              Fill with test data
+            </button>
+          </div>
           <p>Select what fits you. Potential matches see your name and preferences.</p>
         </div>
 
@@ -84,100 +92,220 @@
           <span class="completeness-label" id="complLabel">Profile incomplete</span>
         </div>
 
-        <div class="form-section">
-          <div class="form-label">Your name <span class="required">*</span></div>
-          <input type="text" id="userName" class="text-input" placeholder="e.g. A. Smith (visible to matches)" maxlength="40">
-        </div>
+        <div class="form-group">
+          <div class="form-group-header">
+            <div class="form-group-title">Required info</div>
+            <div class="form-group-sub">The essentials we use to match you.</div>
+          </div>
 
-        <div class="form-section">
-          <div class="form-label">Grade <span class="required">*</span></div>
-          <div class="chip-row" id="gradeChips">
-            <button class="chip" data-val="AA/AO">AA/AO</button>
-            <button class="chip" data-val="EO">EO</button>
-            <button class="chip" data-val="HEO">HEO</button>
-            <button class="chip" data-val="SEO">SEO</button>
-            <button class="chip" data-val="G7">G7</button>
-            <button class="chip" data-val="G6">G6</button>
-            <button class="chip" data-val="SCS1">SCS1</button>
-            <button class="chip" data-val="SCS2">SCS2</button>
+          <div class="form-section">
+            <div class="form-label">Your name <span class="required">*</span></div>
+            <input type="text" id="userName" class="text-input" placeholder="e.g. A. Smith (visible to matches)" maxlength="40">
+          </div>
+
+          <div class="form-section">
+            <div class="form-label">Grade <span class="required">*</span></div>
+            <div class="chip-row" id="gradeChips">
+              <button class="chip" data-val="AA/AO">AA/AO</button>
+              <button class="chip" data-val="EO">EO</button>
+              <button class="chip" data-val="HEO">HEO</button>
+              <button class="chip" data-val="SEO">SEO</button>
+              <button class="chip" data-val="G7">G7</button>
+              <button class="chip" data-val="G6">G6</button>
+              <button class="chip" data-val="SCS1">SCS1</button>
+              <button class="chip" data-val="SCS2">SCS2</button>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <div class="form-label">Directorates / areas you'd consider <span class="required">*</span></div>
+            <div class="chip-row" id="dirChips">
+              <button class="chip" data-val="Economic & Trade">Economic &amp; Trade</button>
+              <button class="chip" data-val="Climate & Environment">Climate &amp; Env</button>
+              <button class="chip" data-val="Security & Defence">Security &amp; Defence</button>
+              <button class="chip" data-val="Consular">Consular</button>
+              <button class="chip" data-val="HR & People">HR &amp; People</button>
+              <button class="chip" data-val="Communications">Communications</button>
+              <button class="chip" data-val="Finance">Finance</button>
+              <button class="chip" data-val="Digital & Data">Digital &amp; Data</button>
+              <button class="chip" data-val="Programme Delivery">Programme Delivery</button>
+              <button class="chip" data-val="Legal & Governance">Legal &amp; Governance</button>
+              <button class="chip" data-val="Corporate Services">Corporate Services</button>
+              <button class="chip" data-val="Overseas Network">Overseas Network</button>
+              <button class="chip" data-val="Open to any">Open to any</button>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <div class="form-label">Days I work <span class="required">*</span></div>
+            <div class="form-hint">For each day, pick how you currently work. Flex = open to negotiate.</div>
+            <div class="day-matrix" id="dayMatrix">
+            <div class="day-row" data-day="Mon">
+              <div class="day-row-header">Mon</div>
+              <button class="day-opt" data-day="Mon" data-val="full">Full</button>
+              <button class="day-opt" data-day="Mon" data-val="part">Part</button>
+              <button class="day-opt" data-day="Mon" data-val="non">Non</button>
+              <button class="day-opt" data-day="Mon" data-val="flexible">Flex</button>
+            </div>
+            <div class="day-row" data-day="Tue">
+              <div class="day-row-header">Tue</div>
+              <button class="day-opt" data-day="Tue" data-val="full">Full</button>
+              <button class="day-opt" data-day="Tue" data-val="part">Part</button>
+              <button class="day-opt" data-day="Tue" data-val="non">Non</button>
+              <button class="day-opt" data-day="Tue" data-val="flexible">Flex</button>
+            </div>
+            <div class="day-row" data-day="Wed">
+              <div class="day-row-header">Wed</div>
+              <button class="day-opt" data-day="Wed" data-val="full">Full</button>
+              <button class="day-opt" data-day="Wed" data-val="part">Part</button>
+              <button class="day-opt" data-day="Wed" data-val="non">Non</button>
+              <button class="day-opt" data-day="Wed" data-val="flexible">Flex</button>
+            </div>
+            <div class="day-row" data-day="Thu">
+              <div class="day-row-header">Thu</div>
+              <button class="day-opt" data-day="Thu" data-val="full">Full</button>
+              <button class="day-opt" data-day="Thu" data-val="part">Part</button>
+              <button class="day-opt" data-day="Thu" data-val="non">Non</button>
+              <button class="day-opt" data-day="Thu" data-val="flexible">Flex</button>
+            </div>
+            <div class="day-row" data-day="Fri">
+              <div class="day-row-header">Fri</div>
+              <button class="day-opt" data-day="Fri" data-val="full">Full</button>
+              <button class="day-opt" data-day="Fri" data-val="part">Part</button>
+              <button class="day-opt" data-day="Fri" data-val="non">Non</button>
+              <button class="day-opt" data-day="Fri" data-val="flexible">Flex</button>
+            </div>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <div class="form-label">Location <span class="required">*</span></div>
+            <div class="chip-row" id="locChips">
+              <button class="chip chip-single" data-val="London - KCS">London – KCS</button>
+              <button class="chip chip-single" data-val="East Kilbride">East Kilbride</button>
+              <button class="chip chip-single" data-val="Remote">Remote</button>
+              <button class="chip chip-single" data-val="Overseas">Overseas</button>
+            </div>
+            <div id="overseasWrap" style="display:none; margin-top:10px;">
+              <select id="overseasSelect" class="select-input">
+                <option value="">Select country office...</option>
+              </select>
+            </div>
           </div>
         </div>
 
-        <div class="form-section">
-          <div class="form-label">Roles you'd consider <span class="required">*</span></div>
-          <div class="form-hint">Select your grade first — roles typically for higher grades are dashed but can still be selected. Click a group to expand it.</div>
-          <div class="accordion" id="roleAccordion"></div>
-          <div class="selected-roles-summary" id="selectedRolesSummary" style="display:none">
-            <span class="summary-label">Selected:</span>
-            <div class="summary-tags" id="summaryTags"></div>
+        <div class="form-group">
+          <div class="form-group-header">
+            <div class="form-group-title">Optional info</div>
+            <div class="form-group-sub">Shared with your matches to help them assess fit. All fields below are optional.</div>
+          </div>
+
+          <div class="form-section">
+            <div class="form-label">Availability</div>
+            <div class="form-hint">What are you currently looking for? e.g. &lsquo;Looking for roles in stage 2&rsquo;, &lsquo;End of tour June, seeking partner for next posting&rsquo;.</div>
+            <input type="text" id="userAvailability" class="text-input" maxlength="200" placeholder="What are you currently looking for?">
+            <div class="char-count"><span id="availabilityCount">0</span> / 200</div>
+          </div>
+
+          <div class="form-section">
+            <div class="form-label">FTE or hours per week</div>
+            <div class="form-hint">e.g. &lsquo;0.6 FTE&rsquo;, &lsquo;22 hours&rsquo;, &lsquo;3 days&rsquo;.</div>
+            <input type="text" id="userFte" class="text-input" maxlength="30" placeholder="e.g. 0.6 FTE">
+          </div>
+
+          <div class="form-section">
+            <div class="form-label">Is your working pattern negotiable?</div>
+            <div class="chip-row" id="negotiableChips">
+              <button class="chip chip-single" data-val="yes">Yes</button>
+              <button class="chip chip-single" data-val="possibly">Possibly</button>
+              <button class="chip chip-single" data-val="no">No</button>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <div class="form-label">Additional working pattern information</div>
+            <div class="form-hint">e.g. &lsquo;I work 6 hours on Wednesday from home&rsquo;, &lsquo;Can be flexible around school hours&rsquo;, &lsquo;Prefer not to work school holidays&rsquo;.</div>
+            <textarea id="userPatternNotes" class="text-input text-area" rows="3" maxlength="400" placeholder="Anything the day grid above can&#39;t capture"></textarea>
+          </div>
+
+          <div class="form-section">
+            <div class="form-label">Skills and experience</div>
+            <div class="form-hint">A short summary to help potential partners assess fit &mdash; e.g. &lsquo;7 years policy, Middle East specialism, programme management experience&rsquo;. Max 50 words.</div>
+            <textarea id="userSkills" class="text-input text-area" rows="3" placeholder="Short summary of skills / experience"></textarea>
+            <div class="char-count"><span id="skillsWordCount">50</span> words remaining</div>
+          </div>
+
+          <div class="form-section">
+            <div class="form-label">Other information</div>
+            <div class="form-hint">Anything else that might help a potential partner &mdash; overseas posting plans, specialist skills, languages, specific roles you have in mind, whether you are already in a role and looking for a partner to join you.</div>
+            <textarea id="userOtherInfo" class="text-input text-area" rows="3" maxlength="600" placeholder="Anything else that could help a partner"></textarea>
+          </div>
+
+          <div class="form-section">
+            <div class="form-label">Working style</div>
+            <div class="form-hint">Not used in matching. Useful for reference when you speak to potential partners.</div>
+            <div class="style-grid" id="styleChips">
+              <button class="style-card chip-single" data-val="clean">
+                <div class="style-title">Clean handover</div>
+                <div class="style-desc">We each own our days, minimal overlap needed</div>
+              </button>
+              <button class="style-card chip-single" data-val="collaborative">
+                <div class="style-title">Close collaboration</div>
+                <div class="style-desc">Regular catch-ups, shared ownership of work</div>
+              </button>
+              <button class="style-card chip-single" data-val="flexible">
+                <div class="style-title">Flexible</div>
+                <div class="style-desc">Happy to adapt to whoever I partner with</div>
+              </button>
+              <button class="style-card chip-single" data-val="unsure">
+                <div class="style-title">Not sure yet</div>
+                <div class="style-desc">Open to discussing what works best</div>
+              </button>
+            </div>
           </div>
         </div>
 
-        <div class="form-section">
-          <div class="form-label">Directorates / areas you'd consider <span class="required">*</span></div>
-          <div class="chip-row" id="dirChips">
-            <button class="chip" data-val="Economic & Trade">Economic &amp; Trade</button>
-            <button class="chip" data-val="Climate & Environment">Climate &amp; Env</button>
-            <button class="chip" data-val="Security & Defence">Security &amp; Defence</button>
-            <button class="chip" data-val="Consular">Consular</button>
-            <button class="chip" data-val="HR & People">HR &amp; People</button>
-            <button class="chip" data-val="Communications">Communications</button>
-            <button class="chip" data-val="Finance">Finance</button>
-            <button class="chip" data-val="Digital & Data">Digital &amp; Data</button>
-            <button class="chip" data-val="Programme Delivery">Programme Delivery</button>
-            <button class="chip" data-val="Legal & Governance">Legal &amp; Governance</button>
-            <button class="chip" data-val="Corporate Services">Corporate Services</button>
-            <button class="chip" data-val="Overseas Network">Overseas Network</button>
-            <button class="chip" data-val="Open to any">Open to any</button>
-          </div>
-        </div>
-
-        <div class="form-section">
-          <div class="form-label">Days I work <span class="required">*</span></div>
-          <div class="form-hint">We'll look for complementary patterns to cover the full week.</div>
-          <div class="days-grid" id="dayChips">
-            <button class="chip day-chip" data-val="Mon">Mon</button>
-            <button class="chip day-chip" data-val="Tue">Tue</button>
-            <button class="chip day-chip" data-val="Wed">Wed</button>
-            <button class="chip day-chip" data-val="Thu">Thu</button>
-            <button class="chip day-chip" data-val="Fri">Fri</button>
-          </div>
-        </div>
-
-        <div class="form-section">
-          <div class="form-label">Working style <span class="required">*</span></div>
-          <div class="style-grid" id="styleChips">
-            <button class="style-card chip-single" data-val="clean">
-              <div class="style-title">Clean handover</div>
-              <div class="style-desc">We each own our days, minimal overlap needed</div>
-            </button>
-            <button class="style-card chip-single" data-val="collaborative">
-              <div class="style-title">Close collaboration</div>
-              <div class="style-desc">Regular catch-ups, shared ownership of work</div>
-            </button>
-            <button class="style-card chip-single" data-val="flexible">
-              <div class="style-title">Flexible</div>
-              <div class="style-desc">Happy to adapt to whoever I partner with</div>
-            </button>
-            <button class="style-card chip-single" data-val="unsure">
-              <div class="style-title">Not sure yet</div>
-              <div class="style-desc">Open to discussing what works best</div>
-            </button>
-          </div>
-        </div>
-
-        <div class="form-section">
-          <div class="form-label">Location</div>
-          <div class="chip-row" id="locChips">
-            <button class="chip chip-single" data-val="London - KCS">London – KCS</button>
-            <button class="chip chip-single" data-val="East Kilbride">East Kilbride</button>
-            <button class="chip chip-single" data-val="Remote">Remote</button>
-            <button class="chip chip-single" data-val="Overseas">Overseas</button>
-          </div>
-          <div id="overseasWrap" style="display:none; margin-top:10px;">
-            <select id="overseasSelect" class="select-input">
-              <option value="">Select country office...</option>
-            </select>
+        <div class="collapsible-section" id="visibilitySection">
+          <button class="collapsible-header" id="visibilityToggle" type="button">
+            <span class="collapsible-title">Who can find me</span>
+            <span class="collapsible-sub">Control when your profile appears in search results</span>
+            <span class="collapsible-arrow">▸</span>
+          </button>
+          <div class="collapsible-body" id="visibilityBody">
+            <p class="collapsible-intro">
+              <strong>Must match</strong> = your profile only shows to people who meet this criterion.<br>
+              <strong>Open</strong> = your profile is visible to anyone regardless of this criterion.
+            </p>
+            <div class="visibility-grid" id="visibilityGrid">
+              <div class="visibility-row" data-key="grade">
+                <div class="visibility-label">Grade</div>
+                <div class="toggle-row">
+                  <button type="button" class="toggle-btn" data-vis="grade" data-val="must">Must match</button>
+                  <button type="button" class="toggle-btn" data-vis="grade" data-val="open">Open</button>
+                </div>
+              </div>
+              <div class="visibility-row" data-key="directorates">
+                <div class="visibility-label">Directorates</div>
+                <div class="toggle-row">
+                  <button type="button" class="toggle-btn" data-vis="directorates" data-val="must">Must match</button>
+                  <button type="button" class="toggle-btn" data-vis="directorates" data-val="open">Open</button>
+                </div>
+              </div>
+              <div class="visibility-row" data-key="location">
+                <div class="visibility-label">Location</div>
+                <div class="toggle-row">
+                  <button type="button" class="toggle-btn" data-vis="location" data-val="must">Must match</button>
+                  <button type="button" class="toggle-btn" data-vis="location" data-val="open">Open</button>
+                </div>
+              </div>
+              <div class="visibility-row" data-key="days">
+                <div class="visibility-label">Days pattern</div>
+                <div class="toggle-row">
+                  <button type="button" class="toggle-btn" data-vis="days" data-val="must">Must match</button>
+                  <button type="button" class="toggle-btn" data-vis="days" data-val="open">Open</button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -192,13 +320,62 @@
     <!-- MATCHES TAB -->
     <section id="tab-matches" class="tab-content">
       <div class="tab-inner">
-        <div id="matchesNoProfile" class="empty-state" style="display:none">
+        <div id="matchesNoProfile" class="empty-state tab-panel" style="display:none">
           <div class="empty-icon">🔍</div>
           <div class="empty-title">Complete your profile first</div>
           <div class="empty-sub">Fill in your profile so we can find your best job share matches.</div>
           <button class="btn-primary-sm" onclick="switchTab('profile')">Go to my profile</button>
         </div>
-        <div id="matchesContent" style="display:none">
+        <div id="matchesContent" class="tab-panel" style="display:none">
+          <div class="collapsible-section prefs-section" id="prefsSection">
+            <button class="collapsible-header" id="prefsToggle" type="button">
+              <span class="collapsible-title">How I want to find matches</span>
+              <span class="collapsible-sub">Set how important each criterion is to your search</span>
+              <span class="collapsible-arrow">▸</span>
+            </button>
+            <div class="collapsible-body" id="prefsBody">
+              <p class="collapsible-intro">
+                <span class="prefs-dot prefs-definite"></span> <strong>Definite</strong> = only show profiles that match this (hard gate)<br>
+                <span class="prefs-dot prefs-preferred"></span> <strong>Preferred</strong> = show all, rank matching profiles higher<br>
+                <span class="prefs-dot prefs-off"></span> <strong>Not relevant</strong> = ignore this when searching
+              </p>
+              <div class="visibility-grid">
+                <div class="visibility-row" data-key="grade">
+                  <div class="visibility-label">Grade</div>
+                  <div class="toggle-row toggle-row-3">
+                    <button type="button" class="toggle-btn" data-pref="grade" data-val="definite">Definite</button>
+                    <button type="button" class="toggle-btn" data-pref="grade" data-val="preferred">Preferred</button>
+                    <button type="button" class="toggle-btn" data-pref="grade" data-val="irrelevant">Not relevant</button>
+                  </div>
+                </div>
+                <div class="visibility-row" data-key="directorates">
+                  <div class="visibility-label">Directorates</div>
+                  <div class="toggle-row toggle-row-3">
+                    <button type="button" class="toggle-btn" data-pref="directorates" data-val="definite">Definite</button>
+                    <button type="button" class="toggle-btn" data-pref="directorates" data-val="preferred">Preferred</button>
+                    <button type="button" class="toggle-btn" data-pref="directorates" data-val="irrelevant">Not relevant</button>
+                  </div>
+                </div>
+                <div class="visibility-row" data-key="location">
+                  <div class="visibility-label">Location</div>
+                  <div class="toggle-row toggle-row-3">
+                    <button type="button" class="toggle-btn" data-pref="location" data-val="definite">Definite</button>
+                    <button type="button" class="toggle-btn" data-pref="location" data-val="preferred">Preferred</button>
+                    <button type="button" class="toggle-btn" data-pref="location" data-val="irrelevant">Not relevant</button>
+                  </div>
+                </div>
+                <div class="visibility-row" data-key="days">
+                  <div class="visibility-label">Days pattern</div>
+                  <div class="toggle-row toggle-row-3">
+                    <button type="button" class="toggle-btn" data-pref="days" data-val="definite">Definite</button>
+                    <button type="button" class="toggle-btn" data-pref="days" data-val="preferred">Preferred</button>
+                    <button type="button" class="toggle-btn" data-pref="days" data-val="irrelevant">Not relevant</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div id="inboundSection" style="display:none">
             <div class="section-label">Requests for you</div>
             <div id="inboundCards"></div>
@@ -216,20 +393,7 @@
           </div>
           <div class="filter-bar" id="filterBar">
             <div class="filter-section">
-              <div class="filter-section-label">Grade</div>
-              <div class="filter-chips" id="filterGrade">
-                <button class="filter-chip" data-val="AA/AO">AA/AO</button>
-                <button class="filter-chip" data-val="EO">EO</button>
-                <button class="filter-chip" data-val="HEO">HEO</button>
-                <button class="filter-chip" data-val="SEO">SEO</button>
-                <button class="filter-chip" data-val="G7">G7</button>
-                <button class="filter-chip" data-val="G6">G6</button>
-                <button class="filter-chip" data-val="SCS1">SCS1</button>
-                <button class="filter-chip" data-val="SCS2">SCS2</button>
-              </div>
-            </div>
-            <div class="filter-section">
-              <div class="filter-section-label">Must be able to work these days</div>
+              <div class="filter-section-label">Working these days</div>
               <div class="filter-chips" id="filterDays">
                 <button class="filter-chip" data-val="Mon">Mon</button>
                 <button class="filter-chip" data-val="Tue">Tue</button>
@@ -247,29 +411,13 @@
                 <button class="filter-chip" data-val="Overseas">Overseas</button>
               </div>
             </div>
-            <div class="filter-section">
-              <div class="filter-section-label">Working style (must match)</div>
-              <div class="filter-chips" id="filterStyle">
-                <button class="filter-chip" data-val="clean">Clean handover</button>
-                <button class="filter-chip" data-val="collaborative">Collaborative</button>
-                <button class="filter-chip" data-val="flexible">Flexible</button>
-              </div>
-            </div>
-            <div class="filter-section">
-              <div class="filter-section-label">Minimum match %</div>
-              <div class="filter-chips" id="filterScore">
-                <button class="filter-chip" data-val="40">40%+</button>
-                <button class="filter-chip" data-val="60">60%+</button>
-                <button class="filter-chip selected" data-val="0">All</button>
-              </div>
-            </div>
           </div>
 
           <div id="matchCards"></div>
           <div id="noMatches" class="empty-state" style="display:none">
             <div class="empty-icon">💡</div>
-            <div class="empty-title">No matches found</div>
-            <div class="empty-sub">Try adjusting your filters, or broaden your role and directorate preferences on your profile.</div>
+            <div class="empty-title">No matches found with your current criteria</div>
+            <div class="empty-sub">Try changing Grade or Directorates from &ldquo;Definite&rdquo; to &ldquo;Preferred&rdquo; in &ldquo;How I want to find matches&rdquo; above &mdash; this will show a wider set of potential partners.</div>
           </div>
           <div class="show-dismissed-row" id="showDismissedRow" style="display:none">
             <button class="btn-ghost-small" id="showDismissedBtn">Show hidden profiles</button>
@@ -281,13 +429,13 @@
     <!-- CONNECTIONS TAB -->
     <section id="tab-connections" class="tab-content">
       <div class="tab-inner">
-        <div id="connNoProfile" class="empty-state" style="display:none">
+        <div id="connNoProfile" class="empty-state tab-panel" style="display:none">
           <div class="empty-icon">🤝</div>
           <div class="empty-title">No connections yet</div>
           <div class="empty-sub">Set up your profile and send connection requests to get started.</div>
           <button class="btn-primary-sm" onclick="switchTab('profile')">Set up profile</button>
         </div>
-        <div id="connContent" style="display:none">
+        <div id="connContent" class="tab-panel" style="display:none">
           <div id="newConnBanner" class="new-conn-banner" style="display:none"></div>
 
           <div id="connectedSection" style="display:none">
@@ -392,40 +540,20 @@
 
       <div class="privacy-section">
         <div class="privacy-section-label" style="color:#185FA5;">How matching works</div>
-        <p class="privacy-text">Each potential partner is scored against your profile across five dimensions. Scores are combined into an overall match percentage shown on each card. Click any percentage to see the full breakdown.</p>
-      </div>
-
-      <div class="about-scoring-table">
-        <div class="about-score-row">
-          <div class="about-score-label">Grade compatibility</div>
-          <div class="about-score-bar-wrap"><div class="about-score-bar" style="width:100%;background:#3B6D11;"></div></div>
-          <div class="about-score-weight" id="about-w-grade">40 pts</div>
-          <div class="about-score-note">Same grade = full points. 1 grade apart = reduced score with warning. 2+ grades apart = not shown (job shares require same grade).</div>
-        </div>
-        <div class="about-score-row">
-          <div class="about-score-label">Role fit</div>
-          <div class="about-score-bar-wrap"><div class="about-score-bar" style="width:62%;background:#4a88cc;"></div></div>
-          <div class="about-score-weight" id="about-w-role">25 pts</div>
-          <div class="about-score-note">Any shared role type between your preferences and theirs.</div>
-        </div>
-        <div class="about-score-row">
-          <div class="about-score-label">Directorate</div>
-          <div class="about-score-bar-wrap"><div class="about-score-bar" style="width:62%;background:#4a88cc;"></div></div>
-          <div class="about-score-weight" id="about-w-dir">25 pts</div>
-          <div class="about-score-note">Shared directorate interests. Bonus points if multiple areas match.</div>
-        </div>
-        <div class="about-score-row">
-          <div class="about-score-label">Day pattern</div>
-          <div class="about-score-bar-wrap"><div class="about-score-bar" style="width:37%;background:#854F0B;"></div></div>
-          <div class="about-score-weight" id="about-w-days">15 pts</div>
-          <div class="about-score-note">Complementary days (minimal overlap, good week coverage) score highest.</div>
-        </div>
-        <div class="about-score-row">
-          <div class="about-score-label">Working style</div>
-          <div class="about-score-bar-wrap"><div class="about-score-bar" style="width:25%;background:#854F0B;"></div></div>
-          <div class="about-score-weight" id="about-w-style">10 pts</div>
-          <div class="about-score-note">Clean handover vs collaborative vs flexible. Flexible always scores points.</div>
-        </div>
+        <p class="privacy-text">First, PairUp applies two gates &mdash; your profile only shows people who:</p>
+        <ul class="about-gate-list">
+          <li>Are the grade you are looking for (unless you relax this in search settings)</li>
+          <li>Share at least one directorate with you (unless you relax this)</li>
+        </ul>
+        <p class="privacy-text" style="margin-top:10px;">Within those results, profiles are ranked by:</p>
+        <ul class="about-rank-list">
+          <li><strong>Day pattern complementarity</strong> &mdash; how well your working days fit together</li>
+          <li><strong>How recently the person was active</strong> &mdash; fresher profiles rank higher</li>
+          <li><strong>How many directorates you share</strong> beyond the minimum</li>
+          <li><strong>Whether you are in the same location</strong></li>
+          <li><strong>Whether their pattern is negotiable</strong></li>
+        </ul>
+        <p class="privacy-text" style="margin-top:10px;">You control this in &ldquo;How I want to find matches&rdquo; on the Matches tab.</p>
       </div>
 
       <div class="privacy-section" style="margin-top:14px;">
@@ -459,23 +587,16 @@
         </div>
       </div>
 
-      <div class="admin-note">Changes take effect immediately and persist across sessions. Staff scores are recalculated on next page load or refresh.</div>
-
-      <div class="admin-weights" id="adminWeights"></div>
+      <div class="admin-note">Ranking now uses: day complementarity, recency, directorate overlap, and location. These are fixed. The only admin control below is how 1-grade-apart profiles are treated when a user sets Grade to &ldquo;Preferred&rdquo; (not Definite) in their search preferences.</div>
 
       <div class="admin-grade-section">
-        <div class="admin-weight-label">Grade mismatch penalty (1 grade apart)</div>
+        <div class="admin-weight-label">Grade mismatch treatment (1 grade apart, relaxed search only)</div>
         <div class="admin-grade-controls">
           <label class="admin-radio"><input type="radio" name="gradePenalty" value="hard" id="gp-hard"> <span>Hard exclude</span> <span class="admin-radio-note">Don&rsquo;t show at all</span></label>
-          <label class="admin-radio"><input type="radio" name="gradePenalty" value="heavy" id="gp-heavy"> <span>Heavy penalty</span> <span class="admin-radio-note">Score 10 pts (default)</span></label>
-          <label class="admin-radio"><input type="radio" name="gradePenalty" value="light" id="gp-light"> <span>Light penalty</span> <span class="admin-radio-note">Score 20 pts</span></label>
-          <label class="admin-radio"><input type="radio" name="gradePenalty" value="none" id="gp-none"> <span>No penalty</span> <span class="admin-radio-note">Full 40 pts</span></label>
+          <label class="admin-radio"><input type="radio" name="gradePenalty" value="heavy" id="gp-heavy"> <span>Heavy penalty</span> <span class="admin-radio-note">Score heavily reduced (default)</span></label>
+          <label class="admin-radio"><input type="radio" name="gradePenalty" value="light" id="gp-light"> <span>Light penalty</span> <span class="admin-radio-note">Score lightly reduced</span></label>
+          <label class="admin-radio"><input type="radio" name="gradePenalty" value="none" id="gp-none"> <span>No penalty</span> <span class="admin-radio-note">Treated same as matching grade</span></label>
         </div>
-      </div>
-
-      <div class="admin-total-row">
-        <span class="admin-total-label">Maximum possible score:</span>
-        <span class="admin-total-val" id="adminTotalScore">115 pts</span>
       </div>
 
       <div class="admin-actions">
@@ -503,7 +624,7 @@
   </div>
 
   <!-- Version -->
-  <div class="app-version">v1.11</div>
+  <div class="app-version">v1.12</div>
 
   <script src="data.js"></script>
   <script src="app.js"></script>
