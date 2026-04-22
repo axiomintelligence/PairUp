@@ -248,6 +248,25 @@ Cookie `SameSite=Lax` blocks most cross-site POST CSRF. State-changing endpoints
 
 Explicitly **not included**: impersonation, editing other users' profiles, viewing any user's raw profile JSON. Reduces GDPR blast radius.
 
+### Maintaining the `access_allowlist` in beta
+
+The allowlist is the gate during Phases 2–3. It needs to be comfortable to maintain for a cohort that starts at ~50 and grows to ~500, then disappears entirely when `ACCESS_ALLOWLIST_ENABLED` is flipped off.
+
+Admin-UI operations, all backed by the `/api/admin/allowlist` endpoints and all writing to `audit_log`:
+
+- **Single add / remove** — type an email, press add. Fine for tactical additions (someone emails the service owner asking for access).
+- **Bulk add** — paste a block of emails (one per line or comma-separated) into a textarea; server splits, lowercases, validates shape, deduplicates against existing rows, and reports back: `{ added: N, already_present: M, rejected: [email, reason] }`. This is how the cohort grows from 50 → 500 in one sitting rather than 450 clicks.
+- **Bulk remove** — same shape, inverse.
+- **CSV export** — download the current list with `added_by` and `added_at` for audit and handover. Also usable as "what did we promise cohort 1?" evidence before widening.
+- **Filter / search** in the admin table view so finding one entry among 500 is one keystroke.
+
+**Deliberately excluded:**
+
+- Domain-wildcard entries (`*@fcdo.gov.uk`). Would collapse the beta gate — we already have tenant-wide access the moment the flag flips off, so a wildcard adds no value and only risks accidentally opening early.
+- Entra group-driven allowlist. AD groups were rejected earlier for the same reason: messy to maintain, and a DB-backed list is simpler, faster to edit, and fully under the admin UI's control.
+
+**Lifecycle:** at Phase 4 cutover we set `ACCESS_ALLOWLIST_ENABLED=false` via Terraform and redeploy. The table stays in place (intact audit trail) but is no longer read. We keep it untouched for the remaining ~6-month lifespan; it's destroyed with the rest of the DB at decommission.
+
 ## API surface (v1)
 
 Implicitly `v1` at the `/api/` prefix. If a breaking change ever needs to happen, `/api/v2/*` ships alongside.
@@ -286,8 +305,11 @@ GET    /api/connections
 GET    /api/admin/stats
 GET    /api/admin/weights
 PUT    /api/admin/weights
-GET    /api/admin/allowlist
-POST   /api/admin/allowlist
+GET    /api/admin/allowlist           # paginated list, supports ?q= filter
+GET    /api/admin/allowlist.csv       # CSV export with added_by, added_at
+POST   /api/admin/allowlist           # add single { email, note? }
+POST   /api/admin/allowlist/bulk-add  # { emails: string[] } → { added, already_present, rejected }
+POST   /api/admin/allowlist/bulk-remove # { emails: string[] } → { removed, not_present }
 DELETE /api/admin/allowlist/:email
 GET    /api/admin/audit
 
