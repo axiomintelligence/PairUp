@@ -42,7 +42,6 @@ All in one Azure resource group per environment.
 
 - **Container App `pairup-web`** — Fastify serving built frontend at `/` and `/api/*`. Internal ingress, HTTPS. Deployed into the existing Container Apps Environment (customer-provided in prod; our own in dev).
 - **Postgres Flexible Server `pairup-db-{env}`** — private endpoint only, PITR 7 days, PgBouncer enabled, managed-identity auth from the API.
-- **Key Vault `pairup-kv-{env}`** — Entra client secret, session signing key. ACA reads via managed identity.
 - **Azure Container Registry** — customer-provided in prod (dedicated `acr/pairup` repo); our own in dev. Image pull via managed identity.
 - **Log Analytics Workspace** — customer-provided in prod; our own in dev. Receives ACA + DB logs.
 - **Entra ID app registration `PairUp-{env}`** — one redirect URI per env; declares one app role `Admin`.
@@ -224,10 +223,10 @@ audit_log (
 Entra ID OIDC Authorization Code + PKCE; scopes `openid profile email`.
 
 1. `GET /api/auth/login` → 302 to Entra `/authorize` with PKCE challenge + state.
-2. `GET /api/auth/callback?code=&state=` → verify state + PKCE, exchange for `id_token`, validate signature/issuer/audience/**tenant**, upsert `users` by `entra_oid` (updating `email`, `display_name`, `last_seen_at`, `is_admin`), issue HttpOnly session cookie (Secure, SameSite=Lax, 8h idle / 24h absolute), 302 `/`.
+2. `GET /api/auth/callback?code=&state=` → verify state + PKCE, exchange `code` for `id_token` using the Container App's managed identity as the client assertion (Entra **federated credential** — no client secret anywhere), validate signature/issuer/audience/**tenant**, upsert `users` by `entra_oid` (updating `email`, `display_name`, `last_seen_at`, `is_admin`), insert a row in `sessions`, issue HttpOnly cookie (Secure, SameSite=Lax, 8h idle / 24h absolute) carrying the opaque session ID, 302 `/`.
 3. `POST /api/auth/logout` → clear cookie, delete session row, 302 Entra end-session endpoint.
 
-Server-side sessions (not JWTs in localStorage): immune to XSS token exfiltration, trivially revocable, fits same-origin browser-only shape.
+Server-side sessions (not JWTs in localStorage): immune to XSS token exfiltration, trivially revocable, fits same-origin browser-only shape. Cookie value is a random 256-bit opaque session ID — no HMAC, no signing key, no secret to store. Authority is the `sessions` table row.
 
 ### Authorization layers
 
@@ -421,7 +420,15 @@ One dashboard in Log Analytics.
 
 ### Secrets
 
-All in Key Vault, pulled at runtime via managed identity. Terraform state and Azure DevOps variable groups hold **only** Key Vault references, never secret values.
+**No secrets in the system.** Every credential is either (a) the Container App's managed identity (Azure-managed; no value ever leaves Azure) or (b) a random opaque token in the app's own database (session IDs, CSRF tokens).
+
+- **Entra token exchange** uses a federated credential on the app registration that trusts the Container App's MI issuer. No client secret, no certificate.
+- **Postgres** uses Azure AD authentication via the same MI.
+- **ACR** image pull uses MI.
+- **Session cookie** is a server-side opaque token, DB-backed, no signing key.
+- **CSRF** double-submit token is random, no signing key.
+
+Terraform state holds no secret values (only resource IDs and MI assignments). Azure DevOps variable groups hold no secrets. If a third-party outbound credential is introduced later (e.g. if notifications are built), that is the point at which Key Vault is added — a ~1-hour Terraform addition.
 
 ### Deploy and rollback
 
