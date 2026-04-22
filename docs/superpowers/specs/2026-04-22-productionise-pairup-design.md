@@ -187,11 +187,12 @@ access_allowlist (
   note      text
 )
 
-admin_weights (
-  id             int PRIMARY KEY CHECK (id = 1),
-  grade_penalty  text NOT NULL DEFAULT 'heavy',   -- 'hard'|'heavy'|'light'|'none'
-  updated_by     uuid REFERENCES users(id),
-  updated_at     timestamptz NOT NULL DEFAULT now()
+admin_config (
+  id                   int PRIMARY KEY CHECK (id = 1),
+  grade_penalty        text NOT NULL DEFAULT 'heavy',   -- 'hard'|'heavy'|'light'|'none'
+  outbound_pending_cap int  NOT NULL DEFAULT 50,        -- max open outbound pending per user
+  updated_by           uuid REFERENCES users(id),
+  updated_at           timestamptz NOT NULL DEFAULT now()
 )
 
 audit_log (
@@ -207,7 +208,7 @@ audit_log (
 ### Business constraints (enforced in the API, not the DB)
 
 - A user has at most one profile (guaranteed by PK on `profiles.user_id`).
-- A user may have at most **50 open outbound pending** `connection_requests`. Prevents "message everyone" abuse; admin-tunable via a row in `admin_weights` (extendable).
+- A user may have at most `admin_config.outbound_pending_cap` (default 50) open outbound pending `connection_requests`. Prevents "message everyone" abuse. Violations return `409 conflict`.
 - `POST /api/requests` is idempotent on `(from_user_id, to_user_id)`.
 - Only `status='published'` profiles enter the matching pool.
 
@@ -240,7 +241,7 @@ Cookie `SameSite=Lax` blocks most cross-site POST CSRF. State-changing endpoints
 ### Admin capabilities (minimal)
 
 - View counts: users, published profiles, pending requests, accepted connections, signups/day.
-- Edit `admin_weights` (scoring tunables).
+- Edit `admin_config` (scoring tunables).
 - Manage `access_allowlist`.
 - View recent `audit_log` entries (last 500, filterable).
 
@@ -297,7 +298,7 @@ GET    /api/ready
 ### Conventions
 
 - Request / response bodies: JSON, validated by `zod`. Same schemas generate OpenAPI served at `/api/docs` (admin-only).
-- Errors: `{ error: { code, message } }` with stable codes (`not_authenticated`, `not_in_beta`, `profile_incomplete`, `not_found`, `conflict`, `rate_limited`).
+- Errors: `{ error: { code, message } }` with stable codes (`not_authenticated`, `not_in_beta`, `profile_incomplete`, `not_found`, `conflict`, `rate_limited`). `profile_incomplete` fires on `POST /api/profile/me/publish` when required fields fail validation; `conflict` fires when the outbound-pending-request cap is hit.
 - Every mutation writes an `audit_log` row.
 
 ### Rate limits (`@fastify/rate-limit`, keyed on session user)
