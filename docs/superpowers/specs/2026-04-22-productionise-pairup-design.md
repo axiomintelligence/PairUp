@@ -14,7 +14,7 @@ Take the current static-only PairUp prototype (a single-user demo backed by 120 
 - Remove all synthetic data and match people as they enter information in the DB.
 - Be stable at up to ~20,000 registered users with expected DAU ≤ 20%.
 - Be easy for the build team to modify quickly.
-- Deploy generically across both our test tenant and the customer's tenant.
+- Deploy generically across both our dev tenant and the customer's tenant.
 
 ## Decisions (locked)
 
@@ -40,11 +40,11 @@ Take the current static-only PairUp prototype (a single-user demo backed by 120 
 
 All in one Azure resource group per environment.
 
-- **Container App `pairup-web`** — Fastify serving built frontend at `/` and `/api/*`. Internal ingress, HTTPS. Deployed into the existing Container Apps Environment (customer-provided in prod; our own in test).
+- **Container App `pairup-web`** — Fastify serving built frontend at `/` and `/api/*`. Internal ingress, HTTPS. Deployed into the existing Container Apps Environment (customer-provided in prod; our own in dev).
 - **Postgres Flexible Server `pairup-db-{env}`** — private endpoint only, PITR 7 days, PgBouncer enabled, managed-identity auth from the API.
 - **Key Vault `pairup-kv-{env}`** — Entra client secret, session signing key. ACA reads via managed identity.
-- **Azure Container Registry** — customer-provided in prod (dedicated `acr/pairup` repo); our own in test. Image pull via managed identity.
-- **Log Analytics Workspace** — customer-provided in prod; our own in test. Receives ACA + DB logs.
+- **Azure Container Registry** — customer-provided in prod (dedicated `acr/pairup` repo); our own in dev. Image pull via managed identity.
+- **Log Analytics Workspace** — customer-provided in prod; our own in dev. Receives ACA + DB logs.
 - **Entra ID app registration `PairUp-{env}`** — one redirect URI per env; declares one app role `Admin`.
 
 ### Request flow
@@ -74,11 +74,10 @@ Browser → ACA ingress → Fastify
 
 | Env | Tenant | Purpose |
 |---|---|---|
-| `dev` | Our Azure | Build team iterates; ephemeral data. |
-| `test` | Our Azure | Integration / load test; seeded fake users. |
+| `dev` | Our Azure | Build team iterates; integration + load testing; seeded fake users. |
 | `prod` | Customer Azure | Real users. |
 
-Same Terraform; three tfvars files pointing at each env's existing ACR, LAW, CAE resource IDs via data sources.
+Same Terraform; two tfvars files pointing at each env's existing ACR, LAW, CAE resource IDs via data sources.
 
 ### Access model
 
@@ -98,11 +97,11 @@ Per-replica size: `0.5 vCPU / 1 GiB RAM` to start; upgrade to `1 vCPU / 2 GiB` o
 
 | Env | Min replicas | Max replicas |
 |---|---|---|
-| dev / test | 1 | 3 |
+| dev | 1 | 3 |
 | prod (beta) | 2 | 5 |
 | prod (open) | 2 | 10 |
 
-Postgres: D2s_v3 (General Purpose) in prod, B2s (Burstable) in dev/test. API pool size 10 per replica (cap = 100 connections at max scale).
+Postgres: D2s_v3 (General Purpose) in prod, B2s (Burstable) in dev. API pool size 10 per replica (cap = 100 connections at max scale).
 
 **PgBouncer enabled** on Flexible Server (transaction pooling mode, port 6432). PgBouncer is the connection pooler built into Azure Postgres Flexible Server: the API sees its pool of 100 connections, but PgBouncer multiplexes them across a much smaller set (~25) of real Postgres backends. This protects the server from connection exhaustion during scale-out bursts or rolling deploys (where old and new replica sets briefly coexist), at zero behavioural cost for this app — our queries are plain parameterised CRUD and don't depend on session-scoped features (`LISTEN/NOTIFY`, session-level prepared statements) that transaction pooling disables.
 
@@ -413,7 +412,7 @@ All in Key Vault, pulled at runtime via managed identity. Terraform state and Az
 - **Unit**: matching/scoring in `packages/matching`, validation schemas, authz helpers. Target ~80% line coverage on matching + authz, pragmatic elsewhere.
 - **Integration**: Fastify + Postgres via `testcontainers`; covers auth, ownership, connection-request state transitions, delete-my-data cascade.
 - **E2E**: Playwright, two golden-path flows — "publish profile then see matches" and "send request → other user accepts → both see connection." Entra replaced with a local mock OIDC server (`mock-oidc`).
-- **Load**: k6 scenarios in the test env against a 20k seeded pool:
+- **Load**: k6 scenarios in the dev env against a 20k seeded pool:
   - Steady-state: 100 RPS for 30 min. Expect p95 < 300ms, zero 5xx.
   - Open-day burst: ramp 0 → 400 RPS over 2 min, hold 10 min. Expect replicas 6–8, p95 < 800ms during ramp, no errors.
   - Pathological matching pool: all 20k users same grade + directorate, 50 RPS on `/api/matches`. Expect p95 < 600ms.
@@ -425,7 +424,7 @@ Pass criteria for the load scenarios are the go/no-go gate for **Phase 4** (open
 | Phase | Duration | Gate to next |
 |---|---|---|
 | 0. Build in dev | 2–3 weeks | Feature-complete against spec; unit + integration tests pass; k6 steady-state passes. |
-| 1. Internal test (our tenant) | 1 week | Team uses as real users, P0/P1 cleared. Security review completed. |
+| 1. Internal test (dev tenant) | 1 week | Team uses as real users, P0/P1 cleared. Security review completed. |
 | 2. Private beta (customer tenant, allowlist, ~50 users) | 2 weeks | No P0/P1 open. DPO signs DPIA. |
 | 3. Widen beta (~500 users) | 1–2 weeks | Load tests pass; no p95 / 5xx regression. |
 | 4. Open to all | — | Flip `ACCESS_ALLOWLIST_ENABLED=false`. |
