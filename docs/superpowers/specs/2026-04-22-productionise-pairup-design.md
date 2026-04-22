@@ -102,7 +102,9 @@ Per-replica size: `0.5 vCPU / 1 GiB RAM` to start; upgrade to `1 vCPU / 2 GiB` o
 | prod (beta) | 2 | 5 |
 | prod (open) | 2 | 10 |
 
-Postgres: D2s_v3 (General Purpose) in prod, B2s (Burstable) in dev/test. PgBouncer enabled on Flexible Server; API pool size 10 per replica (cap = 100 connections at max scale).
+Postgres: D2s_v3 (General Purpose) in prod, B2s (Burstable) in dev/test. API pool size 10 per replica (cap = 100 connections at max scale).
+
+**PgBouncer enabled** on Flexible Server (transaction pooling mode, port 6432). PgBouncer is the connection pooler built into Azure Postgres Flexible Server: the API sees its pool of 100 connections, but PgBouncer multiplexes them across a much smaller set (~25) of real Postgres backends. This protects the server from connection exhaustion during scale-out bursts or rolling deploys (where old and new replica sets briefly coexist), at zero behavioural cost for this app — our queries are plain parameterised CRUD and don't depend on session-scoped features (`LISTEN/NOTIFY`, session-level prepared statements) that transaction pooling disables.
 
 Capacity reasoning for 20k users is in `docs/capacity-reasoning.md` (to be produced in implementation); the short form: steady-state peak ≈50 RPS, open-day burst ≈200 RPS, both comfortably within 10 replicas × 50 concurrent = 500 capacity. The only component that changes character at 20k is notifications, which are deferred.
 
