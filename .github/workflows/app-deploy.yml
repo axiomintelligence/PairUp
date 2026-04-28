@@ -1,0 +1,90 @@
+name: App deploy (build + push + revision update)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'app.js'
+      - 'data.js'
+      - 'styles.css'
+      - 'favicon.*'
+      - 'Dockerfile'
+      - 'nginx.conf'
+      - '.dockerignore'
+      - '.github/workflows/app-deploy.yml'
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AZURE_RESOURCE_GROUP: rg-pairup-uksouth
+  ACR_NAME: acrpairupuksouth
+  CONTAINER_APP_NAME: ca-pairup-web
+  IMAGE_REPO: pairup-web
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build image in ACR
+        id: build
+        run: |
+          TAG="${GITHUB_SHA::7}"
+          IMAGE="${ACR_NAME}.azurecr.io/${IMAGE_REPO}:${TAG}"
+          az acr build \
+            --registry "$ACR_NAME" \
+            --image "${IMAGE_REPO}:${TAG}" \
+            --image "${IMAGE_REPO}:latest" \
+            --file Dockerfile \
+            .
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG"     >> "$GITHUB_OUTPUT"
+
+      - name: Update Container App revision
+        run: |
+          az containerapp update \
+            --name "$CONTAINER_APP_NAME" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --image "${{ steps.build.outputs.image }}" \
+            --revision-suffix "rev-${{ steps.build.outputs.tag }}"
+
+      - name: Smoke test
+        run: |
+          FQDN=$(az containerapp show \
+            --name "$CONTAINER_APP_NAME" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --query 'properties.configuration.ingress.fqdn' -o tsv)
+          echo "FQDN: $FQDN"
+          for i in 1 2 3 4 5 6; do
+            CODE=$(curl -fsS -o response.html -w '%{http_code}' "https://$FQDN/" || echo "000")
+            if [ "$CODE" = "200" ] && grep -q '<title>FCDO PairUp</title>' response.html; then
+              echo "Smoke test passed (HTTP $CODE, title matched)"
+              exit 0
+            fi
+            echo "Attempt $i: HTTP $CODE — retrying in 10s"
+            sleep 10
+          done
+          echo "Smoke test failed"
+          exit 1
+
+      - name: Step summary
+        if: always()
+        run: |
+          FQDN=$(az containerapp show -n "$CONTAINER_APP_NAME" -g "$AZURE_RESOURCE_GROUP" --query 'properties.configuration.ingress.fqdn' -o tsv 2>/dev/null || echo unknown)
+          {
+            echo "## Deployed"
+            echo "- Image: \`${{ steps.build.outputs.image }}\`"
+            echo "- URL: https://$FQDN/"
+          } >> "$GITHUB_STEP_SUMMARY"

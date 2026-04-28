@@ -1,0 +1,69 @@
+name: Infra deploy (Bicep)
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'what-if (plan) or deploy'
+        required: true
+        default: 'what-if'
+        type: choice
+        options:
+          - what-if
+          - deploy
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AZURE_RESOURCE_GROUP: rg-pairup-uksouth
+  AZURE_LOCATION: uksouth
+  BICEP_FILE: infra/main.bicep
+  BICEP_PARAMS: infra/main.parameters.uksouth.json
+
+jobs:
+  bicep:
+    name: ${{ inputs.mode }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.mode == 'deploy' && 'production' || '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Ensure resource group exists
+        run: |
+          az group create -n "$AZURE_RESOURCE_GROUP" -l "$AZURE_LOCATION" --tags app=pairup environment=production
+
+      - name: Bicep what-if
+        if: inputs.mode == 'what-if'
+        run: |
+          az deployment group what-if \
+            -g "$AZURE_RESOURCE_GROUP" \
+            -f "$BICEP_FILE" \
+            -p "@$BICEP_PARAMS"
+
+      - name: Bicep deploy
+        if: inputs.mode == 'deploy'
+        run: |
+          az deployment group create \
+            -g "$AZURE_RESOURCE_GROUP" \
+            -f "$BICEP_FILE" \
+            -p "@$BICEP_PARAMS" \
+            --query 'properties.outputs' -o json | tee deploy-outputs.json
+
+      - name: Summarise outputs
+        if: inputs.mode == 'deploy'
+        run: |
+          {
+            echo '## Deployment outputs'
+            echo '```json'
+            cat deploy-outputs.json
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

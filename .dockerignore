@@ -1,0 +1,11 @@
+.git
+.github
+.gitignore
+.dockerignore
+docs/
+infra/
+node_modules/
+*.md
+.DS_Store
+.vscode/
+.idea/
