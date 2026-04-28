@@ -1,0 +1,101 @@
+name: Infra deploy (Terraform)
+
+# Canonical IaC workflow per HLD §3 + §17 (resolves AXI-107).
+# Runs Terraform plan/apply against `infra/terraform/`. Production runs gate on
+# the `production` GitHub environment (required reviewers).
+#
+# The legacy `infra-deploy.yml` (Bicep) stays in place until the live RG has
+# been imported into Terraform state and the first `apply` produces no
+# changes — see infra/terraform/README.md for the import procedure.
+
+on:
+  workflow_dispatch:
+    inputs:
+      env:
+        description: 'tfvars file under infra/terraform/envs (without .tfvars).'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - prod
+      mode:
+        description: 'plan or apply'
+        required: true
+        default: 'plan'
+        type: choice
+        options:
+          - plan
+          - apply
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  TF_DIR: infra/terraform
+  TF_VERSION: '1.14.9'
+
+jobs:
+  terraform:
+    name: ${{ inputs.mode }} (${{ inputs.env }})
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.mode == 'apply' && 'production' || '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Terraform fmt + validate
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          terraform fmt -recursive -check
+          terraform init -backend=false
+          terraform validate
+
+      # Real init with backend (will use local state until a backend block is added).
+      - name: Terraform init
+        working-directory: ${{ env.TF_DIR }}
+        env:
+          ARM_USE_OIDC: 'true'
+          ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+        run: terraform init
+
+      - name: Terraform plan
+        working-directory: ${{ env.TF_DIR }}
+        env:
+          ARM_USE_OIDC: 'true'
+          ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          terraform plan -var-file=envs/${{ inputs.env }}.tfvars -out=tfplan
+          terraform show -no-color tfplan > plan.txt
+          {
+            echo '## Terraform plan (`${{ inputs.env }}`)'
+            echo '```'
+            head -c 50000 plan.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Terraform apply
+        if: inputs.mode == 'apply'
+        working-directory: ${{ env.TF_DIR }}
+        env:
+          ARM_USE_OIDC: 'true'
+          ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+        run: terraform apply -auto-approve tfplan

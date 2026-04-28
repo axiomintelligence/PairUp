@@ -22,3 +22,16 @@ apps/web/public/
 coverage/
 .tmp/
 .cache/
+
+# Terraform — state files and provider downloads. .terraform.lock.hcl IS committed
+# (provider pinning).
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json

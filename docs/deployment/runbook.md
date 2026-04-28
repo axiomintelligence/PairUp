@@ -2,6 +2,8 @@
 
 Day-1 bootstrap and day-2 operations for the deployment described in [azure-uksouth-plan.md](azure-uksouth-plan.md).
 
+> **IaC: Terraform** per HLD §3 + §17 (resolves [AXI-107](https://linear.app/axiomintelligence/issue/AXI-107)). The canonical IaC lives under [`infra/terraform/`](../../infra/terraform/). The legacy [`infra/bicep/`](../../infra/bicep/) modules stay alongside until the live RG is imported into Terraform state and the first `terraform apply` produces no changes — see [`infra/terraform/README.md`](../../infra/terraform/README.md) for the import procedure.
+
 Subscription: `acb7f374-57b1-4bc8-bd61-676c3947b148` (Microsoft Azure Sponsorship, AXIOM INTELLIGENCE LTD).
 Resource group: `rg-pairup-uksouth`.
 

@@ -8,7 +8,9 @@ PairUp is currently a static client-side demo (HTML/CSS/JS, state in `localStora
 
 Subscription: **Microsoft Azure Sponsorship** (`acb7f374-57b1-4bc8-bd61-676c3947b148`), tenant **AXIOM INTELLIGENCE LTD**.
 
-For Postgres we use the **Container Apps Postgres add-on (dev service)** — Postgres runs as a managed service inside the Container Apps environment, costs pence/day on the env's Consumption billing, and exposes credentials via service binding rather than a Key Vault secret. Trade-off: no SLA, no managed backups; suitable for a demo, not for production data. Upgrade path to Postgres Flexible Server (B1ms, ~£10–13/mo) is a contained Bicep change.
+For Postgres we use the **Container Apps Postgres add-on (dev service)** — Postgres runs as a managed service inside the Container Apps environment, costs pence/day on the env's Consumption billing, and exposes credentials via service binding rather than a Key Vault secret. Trade-off: no SLA, no managed backups; suitable for a demo, not for production data. Upgrade path to Postgres Flexible Server (B1ms, ~£10–13/mo) is a contained Terraform change (toggle `enable_postgres_flex = true` in the env tfvars per [AXI-124](https://linear.app/axiomintelligence/issue/AXI-124)).
+
+**IaC**: Terraform 1.6+ per HLD §3 + §17. The legacy Bicep modules under [`infra/bicep/`](../../infra/bicep/) stay until the live RG has been imported into Terraform state and the first `terraform apply` produces no changes (see [`infra/terraform/README.md`](../../infra/terraform/README.md) for the import procedure). [AXI-107](https://linear.app/axiomintelligence/issue/AXI-107).
 
 > ⚠️ Sponsorship subscriptions have a credit cap. Estimated steady-state cost (§7) is ~£5–8/month; mostly ACR + Container Apps idle.
 
