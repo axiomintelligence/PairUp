@@ -1,0 +1,4 @@
+# Build context is apps/web-static/. Keep it minimal.
+.dockerignore
+*.md
+.DS_Store

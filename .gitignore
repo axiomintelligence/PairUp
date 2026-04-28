@@ -1,0 +1,24 @@
+# Node / npm workspaces
+node_modules/
+npm-debug.log*
+
+# Build output
+dist/
+build/
+apps/web/public/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Editor / OS
+.DS_Store
+.vscode/
+.idea/
+
+# Logs / coverage / temp
+*.log
+coverage/
+.tmp/
+.cache/

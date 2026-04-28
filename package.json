@@ -1,0 +1,19 @@
+{
+  "name": "pairup",
+  "version": "0.0.0",
+  "private": true,
+  "description": "PairUp monorepo. apps/web (Fastify backend), apps/web-static (Phase 0 nginx demo), packages/* (shared libs).",
+  "engines": {
+    "node": ">=20"
+  },
+  "workspaces": [
+    "apps/web",
+    "packages/frontend",
+    "packages/matching"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present"
+  }
+}

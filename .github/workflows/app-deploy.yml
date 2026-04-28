@@ -1,17 +1,13 @@
 name: App deploy (build + push + revision update)
 
+# Phase 0: builds and ships apps/web-static (nginx static demo).
+# When PR 13 (AXI-122) lands, switch to apps/web (Fastify single-container).
+
 on:
   push:
     branches: [main]
     paths:
-      - 'index.html'
-      - 'app.js'
-      - 'data.js'
-      - 'styles.css'
-      - 'favicon.*'
-      - 'Dockerfile'
-      - 'nginx.conf'
-      - '.dockerignore'
+      - 'apps/web-static/**'
       - '.github/workflows/app-deploy.yml'
   workflow_dispatch: {}
 
@@ -24,6 +20,7 @@ env:
   ACR_NAME: acrpairupuksouth
   CONTAINER_APP_NAME: ca-pairup-web
   IMAGE_REPO: pairup-web
+  BUILD_CONTEXT: apps/web-static
 
 jobs:
   build-and-deploy:
@@ -47,8 +44,8 @@ jobs:
             --registry "$ACR_NAME" \
             --image "${IMAGE_REPO}:${TAG}" \
             --image "${IMAGE_REPO}:latest" \
-            --file Dockerfile \
-            .
+            --file "${BUILD_CONTEXT}/Dockerfile" \
+            "${BUILD_CONTEXT}"
           echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG"     >> "$GITHUB_OUTPUT"
 

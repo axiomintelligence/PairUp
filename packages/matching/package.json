@@ -1,0 +1,16 @@
+{
+  "name": "@pairup/matching",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Shared scoring logic — SQL pre-filter helpers + in-process scoring. Empty placeholder; populated in PR 3 (AXI-112).",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "echo \"matching build lands in PR 3 (AXI-112)\" && exit 0",
+    "test": "echo \"vitest suite lands in PR 3 (AXI-112)\" && exit 0"
+  }
+}
