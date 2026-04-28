@@ -1,6 +1,7 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import cookie from '@fastify/cookie';
 import formbody from '@fastify/formbody';
+import rateLimit from '@fastify/rate-limit';
 import sensible from '@fastify/sensible';
 import {
   serializerCompiler,
@@ -14,6 +15,7 @@ import { OidcClient } from './auth/oidc-client.js';
 import { mockOidcDiscoveryUrl, registerMockOidc } from './auth/mock-oidc.js';
 import { registerAuthRoutes } from './routes/auth.js';
 import { registerOpsRoutes } from './routes/ops.js';
+import { registerProfileRoutes } from './routes/profile.js';
 
 export interface BuildServerOptions {
   logLevel?: string;
@@ -62,6 +64,13 @@ export async function buildServer(opts: BuildServerOptions = {}): Promise<Fastif
   await app.register(cookie);
   await app.register(formbody); // OIDC /token uses application/x-www-form-urlencoded
   await app.register(sensible);
+  await app.register(rateLimit, {
+    // HLD §7.1 global fallback: 600 / minute / session user.
+    global: false, // routes opt in via `config.rateLimit`
+    max: 600,
+    timeWindow: '1 minute',
+    keyGenerator: (req) => req.session?.user.id ?? req.ip,
+  });
   await app.register(errorHandler);
   await app.register(openapi);
 
@@ -79,6 +88,7 @@ export async function buildServer(opts: BuildServerOptions = {}): Promise<Fastif
 
   // Routes
   await registerOpsRoutes(app);
+  await registerProfileRoutes(app);
 
   if (process.env.OIDC_DISCOVERY_URL || useMockOidc) {
     const discoveryUrl = process.env.OIDC_DISCOVERY_URL ?? mockOidcDiscoveryUrl(publicBaseUrl());
