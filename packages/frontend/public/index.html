@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FCDO PairUp</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="brand">
+        <div class="brand-logo">
+          <span class="brand-fcdo">FCDO</span><span class="brand-pair">Pair</span><span class="brand-up">Up</span>
+        </div>
+        <span class="brand-tag">Job share matcher</span>
+      </div>
+      <div class="header-buttons">
+        <button class="privacy-btn" id="privacyBtn" type="button">Privacy</button>
+        <button class="about-btn" id="aboutBtn" type="button">About</button>
+        <button class="admin-btn" id="adminBtn" type="button" hidden>Admin</button>
+        <button class="refresh-btn" id="signOutBtn" type="button" hidden>Sign out</button>
+      </div>
+    </div>
+    <div class="nav-tabs" id="navTabs" hidden>
+      <button class="nav-tab" data-tab="profile" type="button">My profile</button>
+      <button class="nav-tab" data-tab="matches" type="button">Matches <span class="tab-badge" id="matchesBadge" hidden>0</span></button>
+      <button class="nav-tab" data-tab="connections" type="button">Connected <span class="tab-badge" id="connectionsBadge" hidden>0</span></button>
+    </div>
+  </header>
+
+  <main class="app-main" id="appMain">
+    <!-- Sign-in card shown until /api/auth/me reports authenticated:true -->
+    <section id="signInView" class="empty-state" hidden>
+      <div class="empty-icon">🔐</div>
+      <div class="empty-title">Sign in to PairUp</div>
+      <div class="empty-sub">
+        PairUp uses your FCDO account to keep profiles private to colleagues.
+        We don't store passwords; sign-in goes through your tenant.
+      </div>
+      <a class="btn-primary-sm" id="signInBtn" href="/api/auth/login">Sign in</a>
+    </section>
+
+    <section class="tab-content" id="tab-profile" hidden></section>
+    <section class="tab-content" id="tab-matches" hidden></section>
+    <section class="tab-content" id="tab-connections" hidden></section>
+  </main>
+
+  <div class="modal-overlay" id="modalOverlay" hidden>
+    <div class="modal-box" id="modalBox"></div>
+  </div>
+
+  <div class="app-version" id="appVersion">PairUp v1 · Phase 1</div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

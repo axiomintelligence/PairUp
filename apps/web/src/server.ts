@@ -1,8 +1,11 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import Fastify, { type FastifyInstance } from 'fastify';
 import cookie from '@fastify/cookie';
 import formbody from '@fastify/formbody';
 import rateLimit from '@fastify/rate-limit';
 import sensible from '@fastify/sensible';
+import fastifyStatic from '@fastify/static';
 import {
   serializerCompiler,
   validatorCompiler,
@@ -99,6 +102,18 @@ export async function buildServer(opts: BuildServerOptions = {}): Promise<Fastif
   await registerConnectionsRoutes(app);
   await registerMeRoutes(app);
   await registerAdminRoutes(app);
+
+  // Static frontend bundle (built by @pairup/frontend → apps/web/public/).
+  // dist/server.js → ../public is apps/web/public/.
+  const publicDir = path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    '../public',
+  );
+  await app.register(fastifyStatic, {
+    root: publicDir,
+    wildcard: false,
+    prefix: '/',
+  });
 
   if (process.env.OIDC_DISCOVERY_URL || useMockOidc) {
     const discoveryUrl = process.env.OIDC_DISCOVERY_URL ?? mockOidcDiscoveryUrl(publicBaseUrl());

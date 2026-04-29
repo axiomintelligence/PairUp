@@ -2,12 +2,23 @@
   "name": "@pairup/frontend",
   "version": "0.0.0",
   "private": true,
-  "description": "Frontend modules — built with esbuild, output consumed by @pairup/web. Empty placeholder; populated in PR 11 (AXI-120).",
+  "description": "PairUp frontend — vanilla TypeScript modules built with esbuild. Output consumed by @pairup/web.",
   "type": "module",
   "engines": {
     "node": ">=20"
   },
   "scripts": {
-    "build": "echo \"frontend build lands in PR 11 (AXI-120)\" && exit 0"
+    "build": "node build.mjs",
+    "build:dev": "node build.mjs --dev",
+    "typecheck": "tsc --noEmit",
+    "watch": "node build.mjs --watch"
+  },
+  "dependencies": {
+    "@pairup/matching": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "esbuild": "^0.23.0",
+    "typescript": "^5.5.0"
   }
 }

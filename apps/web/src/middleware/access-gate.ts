@@ -9,20 +9,24 @@ import { isAllowlistEnabled, isEmailAllowlisted } from '../auth/allowlist.js';
 // requires a valid session. If ACCESS_ALLOWLIST_ENABLED, also requires the
 // user's email to be in access_allowlist.
 
-const PUBLIC_PREFIXES = [
+const PUBLIC_API_PREFIXES = [
   '/api/auth/',
   '/api/health',
   '/api/ready',
   '/api/docs',
-  // Mock OIDC endpoints — only mounted when MOCK_OIDC=true; harmless to allow
-  // either way because they don't reach session-bearing code paths.
   '/__mock-oidc/',
 ];
 
 function isPublic(url: string): boolean {
-  // Strip query string for the prefix check.
   const path = url.split('?')[0] ?? url;
-  return PUBLIC_PREFIXES.some((p) => path === p || path.startsWith(p));
+  // Only /api/* + /__mock-oidc/* require authentication. Static assets
+  // (index.html, app.js, styles.css, favicons) are served by the SPA from
+  // the root and are public — the SPA itself calls /api/auth/me to learn
+  // whether to render the sign-in screen.
+  if (!path.startsWith('/api/') && !path.startsWith('/__mock-oidc/')) {
+    return true;
+  }
+  return PUBLIC_API_PREFIXES.some((p) => path === p || path.startsWith(p));
 }
 
 async function accessGatePlugin(app: FastifyInstance): Promise<void> {

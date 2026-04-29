@@ -45,7 +45,19 @@ async function errorHandlerPlugin(app: FastifyInstance): Promise<void> {
       .send(shapeErrorBody('not_found', err.message ?? 'Not found'));
   });
 
-  app.setNotFoundHandler((_req, reply) => {
+  app.setNotFoundHandler((req, reply) => {
+    // API + mock-oidc: JSON envelope.
+    if (req.url.startsWith('/api/') || req.url.startsWith('/__mock-oidc/')) {
+      reply.code(404).send(shapeErrorBody('not_found', 'Not found'));
+      return;
+    }
+    // SPA fallback for browser navigations — serve the static index so
+    // client-side routing can take over. @fastify/static decorates `reply`
+    // with `sendFile`; the cast keeps the types narrow.
+    const sendFile = (reply as unknown as { sendFile?: (p: string) => unknown }).sendFile;
+    if (typeof sendFile === 'function') {
+      return sendFile.call(reply, 'index.html');
+    }
     reply.code(404).send(shapeErrorBody('not_found', 'Not found'));
   });
 }
