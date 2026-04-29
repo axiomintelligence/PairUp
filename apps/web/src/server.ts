@@ -19,6 +19,7 @@ import { registerProfileRoutes } from './routes/profile.js';
 import { registerMatchesRoutes } from './routes/matches.js';
 import { registerSearchPrefsRoutes } from './routes/search-prefs.js';
 import { registerConnectionsRoutes } from './routes/connections.js';
+import { registerMeRoutes } from './routes/me.js';
 
 export interface BuildServerOptions {
   logLevel?: string;
@@ -95,6 +96,7 @@ export async function buildServer(opts: BuildServerOptions = {}): Promise<Fastif
   await registerMatchesRoutes(app);
   await registerSearchPrefsRoutes(app);
   await registerConnectionsRoutes(app);
+  await registerMeRoutes(app);
 
   if (process.env.OIDC_DISCOVERY_URL || useMockOidc) {
     const discoveryUrl = process.env.OIDC_DISCOVERY_URL ?? mockOidcDiscoveryUrl(publicBaseUrl());
