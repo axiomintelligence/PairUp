@@ -87,7 +87,13 @@ In `axiomintelligence/PairUp` → **Settings → Secrets and variables → Actio
 - `AZURE_TENANT_ID` = `12c068b0-44ec-490a-bb12-fe9512f110ad`
 - `AZURE_SUBSCRIPTION_ID` = `acb7f374-57b1-4bc8-bd61-676c3947b148`
 
-**Repository secrets**: none required for Phase 1 (the Postgres dev-service manages its own credentials and exposes them to the app via service binding).
+**Repository secrets**:
+
+- `POSTGRES_ADMIN_PASSWORD` — Postgres Flex admin password. Generate once with
+  `gh secret set POSTGRES_ADMIN_PASSWORD --body "$(openssl rand -base64 24 | tr -d '+/=')"`
+  and store the same value somewhere safe (e.g. 1Password) — Bicep redeploys are
+  idempotent against the same value but rotating the secret rewrites the live
+  `database-url` in Key Vault and roll-forwards on the next container revision.
 
 Then in **Settings → Environments**, create an environment called `production` and add required reviewers (yourself). The infra deploy step gates on this.
 
@@ -140,43 +146,102 @@ az containerapp revision activate -n ca-pairup-web --revision <name>
 az containerapp ingress traffic set -n ca-pairup-web --revision-weight <name>=100
 ```
 
-### Inspect the Postgres dev-service
+### Inspect Postgres Flex
 
 ```bash
-# Confirm the service exists and is running
-az containerapp env service list \
-  --name cae-pairup-uksouth \
-  --resource-group rg-pairup-uksouth -o table
+# Server status, SKU, FQDN
+az postgres flexible-server show -n pairup-pg-flex -g rg-pairup-uksouth -o table
 
-# Show the binding from the app's perspective
+# DATABASE_URL secret on Key Vault (fetched by the container app at runtime)
+az keyvault secret show --vault-name kv-pairup-uksouth --name database-url --query value -o tsv
+
+# How the container app references it
 az containerapp show -n ca-pairup-web -g rg-pairup-uksouth \
-  --query 'properties.template.serviceBinds'
+  --query 'properties.configuration.secrets'
 ```
 
-### Connect to the dev-service Postgres ad-hoc
+### Connect to Postgres Flex ad-hoc
 
-The dev-service Postgres has no public endpoint — connect from a one-shot container in the same Container Apps environment that runs `psql` against the bound service:
+The Flex server has public network access enabled with the `AllowAllAzureServicesAndResourcesWithinAzureIps` firewall rule. To connect from your laptop, add a one-shot rule with your current IP, run psql, then remove it:
 
 ```bash
-az containerapp exec \
-  -n ca-pairup-web -g rg-pairup-uksouth \
-  --command "/bin/sh -c 'apk add --no-cache postgresql-client >/dev/null && PGPASSWORD=\"\$POSTGRES_PASSWORD\" psql -h \"\$POSTGRES_HOST\" -U \"\$POSTGRES_USERNAME\" -d \"\$POSTGRES_DATABASE\"'"
+MY_IP=$(curl -s https://ifconfig.me)
+az postgres flexible-server firewall-rule create \
+  -n pairup-pg-flex -g rg-pairup-uksouth \
+  --rule-name laptop-$(date +%s) \
+  --start-ip-address "$MY_IP" --end-ip-address "$MY_IP"
+
+# Pull the connection string the app uses, then connect
+PGURL=$(az keyvault secret show --vault-name kv-pairup-uksouth --name database-url --query value -o tsv)
+psql "$PGURL"
+
+# Tear down the rule afterward
+az postgres flexible-server firewall-rule delete \
+  -n pairup-pg-flex -g rg-pairup-uksouth \
+  --rule-name laptop-<the-timestamp> --yes
 ```
 
-(The Phase 2 backend container will read the same `POSTGRES_*` env vars at startup; no manual config needed.)
-
-### Reset the dev-service (destroys data)
+### Reset the database (destroys data)
 
 ```bash
-# Delete and recreate the add-on — credentials and any data are wiped
-az containerapp env service delete \
-  --name pairup-pg --environment cae-pairup-uksouth -g rg-pairup-uksouth --yes
-# Then re-run `Infra deploy (Bicep)` with mode=deploy to recreate.
+# Drop and recreate the `pairup` database (server kept). Migrations rerun
+# from scratch on the next container revision (RUN_MIGRATIONS_ON_STARTUP=true).
+psql "$PGURL_AS_ADMIN" -c 'DROP DATABASE pairup; CREATE DATABASE pairup;'
+
+# Force a new container revision so migrate-on-startup fires
+az containerapp update -n ca-pairup-web -g rg-pairup-uksouth \
+  --revision-suffix reset-$(date +%H%M)
 ```
 
-### Upgrade to managed Flexible Server later
+### Rotate the Postgres admin password
 
-When you outgrow the dev-service (need backups, SLA, point-in-time restore), swap `infra/modules/postgres-dev-service.bicep` for a `postgres-flexible.bicep` module that provisions `Microsoft.DBforPostgreSQL/flexibleServers` (B1ms or larger), and replace the `serviceBinds` entry on the container app with explicit `POSTGRES_*` env vars sourced from Key Vault. The rest of the topology stays the same.
+```bash
+NEW_PW=$(openssl rand -base64 24 | tr -d '+/=')
+az postgres flexible-server update \
+  -n pairup-pg-flex -g rg-pairup-uksouth \
+  --admin-password "$NEW_PW"
+gh secret set POSTGRES_ADMIN_PASSWORD --body "$NEW_PW"
+# Then re-run `Infra deploy (Bicep)` with mode=deploy. It rewrites `database-url`
+# in Key Vault. Force a new container revision to pick up the new secret value.
+az containerapp update -n ca-pairup-web -g rg-pairup-uksouth \
+  --revision-suffix pwrot-$(date +%H%M)
+```
+
+### Decommission the legacy dev-service add-on
+
+Phase 0/1 used a Container Apps Postgres dev-service add-on (`pairup-pg`). Once Postgres Flex is live and the app is migrated, remove the dev-service:
+
+```bash
+# Confirm nothing still binds to it
+az containerapp show -n ca-pairup-web -g rg-pairup-uksouth \
+  --query 'properties.template.serviceBinds' # should be []
+
+# Delete (the resource is a containerApps with configuration.service.type=postgres)
+az containerapp delete -n pairup-pg -g rg-pairup-uksouth --yes
+```
+
+### Upgrade Postgres Flex sizing
+
+```bash
+# Scale up SKU (downtime: ~30-60s vertical scale)
+az postgres flexible-server update \
+  -n pairup-pg-flex -g rg-pairup-uksouth \
+  --sku-name Standard_D2s_v3 --tier GeneralPurpose
+
+# Or grow storage (online, no downtime)
+az postgres flexible-server update \
+  -n pairup-pg-flex -g rg-pairup-uksouth \
+  --storage-size 64
+```
+
+### Move Postgres Flex behind a private endpoint (Phase 2 / AXI-124)
+
+The current topology uses public network access + firewall rule. To lift into the same VNet as Container Apps:
+
+1. Create a VNet + subnets (Postgres delegation + Container Apps env subnet).
+2. Recreate the Container Apps env with `vnetConfiguration.infrastructureSubnetId` (existing env can't be vnet-integrated in place).
+3. Switch `postgres-flexible.bicep` from `publicNetworkAccess: 'Enabled'` to `network.delegatedSubnetResourceId` (private DNS zone integration).
+4. Delete the `AllowAllAzureServicesAndResourcesWithinAzureIps` firewall rule.
 
 ### Scale tweaks
 
@@ -205,6 +270,8 @@ az keyvault purge -n kv-pairup-uksouth --location uksouth
 | `infra-deploy` fails on role assignments            | The OIDC SP needs **User Access Administrator** on the RG (see §1.3). Re-run after granting.            |
 | `app-deploy` fails at `az acr build`                 | ACR name conflict (globally unique). Rename `acrName` in `infra/main.bicep` and redeploy infra.         |
 | Container App ingress 503 after first infra deploy   | Expected — placeholder image health probes failing. Trigger `app-deploy` to push the real image.        |
-| Bicep deploy stuck on Postgres add-on                | Dev-service provisioning is usually <1 min. If it hangs, check `az containerapp env service list` and the env's provisioning state. |
+| Bicep deploy stuck on Postgres Flex                  | Initial provision is 5-8 min; SKU/storage updates are quicker. Check `az postgres flexible-server show -n pairup-pg-flex` for `state`.    |
 | Key Vault name in use error                          | Soft-delete from a prior run. `az keyvault purge -n kv-pairup-uksouth --location uksouth`.              |
+| Container app can't reach Postgres Flex (`db:failing`) | Confirm `AllowAllAzureServicesAndResourcesWithinAzureIps` firewall rule is in place; verify TLS via `psql "$PGURL"` from your laptop with a temp firewall rule. |
+| `database-url` in Key Vault, but app reports `db:unconfigured` | UAMI is missing Key Vault Secrets User on the vault, or the secretRef name doesn't match. Check `az containerapp show … --query 'properties.configuration.secrets'`. |
 | Smoke test passes but UI looks broken                | Check browser console; likely `localStorage` quota or a CSP header. We currently set no CSP — investigate other headers in `nginx.conf`. |

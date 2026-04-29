@@ -5,6 +5,9 @@
     "location": { "value": "uksouth" },
     "namePrefix": { "value": "pairup" },
     "regionTag": { "value": "uksouth" },
-    "postgresDatabaseName": { "value": "pairup" }
+    "postgresDatabaseName": { "value": "pairup" },
+    "postgresAdminLogin": { "value": "pairupadmin" },
+    "authDisabled": { "value": true },
+    "runMigrationsOnStartup": { "value": true }
   }
 }

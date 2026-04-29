@@ -9,17 +9,30 @@ param namePrefix string = 'pairup'
 @description('Region tag used for resource names')
 param regionTag string = 'uksouth'
 
-@description('Postgres database name (used in connection-string envs once a backend binds to the dev service)')
+@description('Postgres database name created on the Flexible Server.')
 param postgresDatabaseName string = 'pairup'
+
+@description('Postgres admin login.')
+param postgresAdminLogin string = 'pairupadmin'
+
+@description('Postgres admin password. Pass via az CLI `--parameters postgresAdminPassword=<from-vault>` and never commit. Generate with `openssl rand -base64 24` and stash in Key Vault.')
+@secure()
+param postgresAdminPassword string
 
 @description('Container image to deploy. Leave default for first bootstrap; the app-deploy workflow updates this on each push.')
 param containerImage string = 'mcr.microsoft.com/k8se/quickstart:latest'
+
+@description('Disable real auth on the live URL (Phase 1 demo before Entra tenant decision lands). When `true`, every request is authenticated as a fixed non-admin demo user; admin endpoints stay locked.')
+param authDisabled bool = true
+
+@description('Run migrations at API startup under a Postgres advisory lock (HLD §6 + §17). AXI-109 may flip this to a Container Apps Job, in which case set false.')
+param runMigrationsOnStartup bool = true
 
 var logAnalyticsName = 'log-${namePrefix}-${regionTag}'
 var acrName = toLower('acr${namePrefix}${regionTag}')
 var managedIdentityName = 'id-${namePrefix}-web'
 var keyVaultName = 'kv-${namePrefix}-${regionTag}'
-var postgresServiceName = '${namePrefix}-pg'
+var postgresFlexName = '${namePrefix}-pg-flex'
 var containerAppsEnvName = 'cae-${namePrefix}-${regionTag}'
 var containerAppName = 'ca-${namePrefix}-web'
 
@@ -50,8 +63,9 @@ module acr 'modules/acr.bicep' = {
   }
 }
 
-// Key Vault is kept for future application secrets even though the Postgres
-// dev-service manages its own credentials and exposes them via service binding.
+// Key Vault holds the Postgres connection string the container app reads
+// at runtime via `secrets[].keyVaultUrl`. The UAMI is granted Secrets User
+// inside the keyvault module.
 module keyVault 'modules/keyvault.bicep' = {
   name: 'keyVault'
   params: {
@@ -72,12 +86,34 @@ module containerAppsEnv 'modules/container-apps-env.bicep' = {
   }
 }
 
-module postgres 'modules/postgres-dev-service.bicep' = {
-  name: 'postgresDevService'
+// Phase 1 Postgres: managed Flexible Server (B1ms). Replaces the dev-service
+// add-on per AXI-124 / HLD §11.1. Public network access with Allow-Azure-
+// Services firewall + TLS-only is the simplest reliable path on Container
+// Apps Consumption (outbound IPs aren't deterministic). Phase 2 lifts to a
+// private endpoint inside a shared VNet.
+module postgresFlex 'modules/postgres-flexible.bicep' = {
+  name: 'postgresFlex'
   params: {
-    environmentId: containerAppsEnv.outputs.id
+    name: postgresFlexName
     location: location
-    name: postgresServiceName
+    administratorLogin: postgresAdminLogin
+    administratorPassword: postgresAdminPassword
+    databaseName: postgresDatabaseName
+  }
+}
+
+// Connection string the API reads from DATABASE_URL. URI-encode the
+// password to survive any literal `@` / `/` / `?` characters that
+// `openssl rand -base64` may emit. `sslmode=require` is mandatory on Flex.
+var pgPasswordEncoded = uriComponent(postgresAdminPassword)
+var databaseUrl = 'postgres://${postgresAdminLogin}:${pgPasswordEncoded}@${postgresFlex.outputs.fqdn}:5432/${postgresDatabaseName}?sslmode=require'
+
+module databaseUrlSecret 'modules/keyvault-secret.bicep' = {
+  name: 'databaseUrlSecret'
+  params: {
+    vaultName: keyVault.outputs.name
+    secretName: 'database-url'
+    secretValue: databaseUrl
   }
 }
 
@@ -90,10 +126,39 @@ module containerApp 'modules/container-app.bicep' = {
     managedIdentityId: managedIdentity.outputs.id
     acrLoginServer: acr.outputs.loginServer
     image: containerImage
-    serviceBinds: [
+    targetPort: 8080
+    probePath: '/api/health'
+    keyVaultSecrets: [
       {
-        serviceId: postgres.outputs.id
-        name: 'postgres'
+        name: 'database-url'
+        keyVaultUrl: databaseUrlSecret.outputs.uri
+        identity: managedIdentity.outputs.id
+      }
+    ]
+    env: [
+      {
+        name: 'DATABASE_URL'
+        secretRef: 'database-url'
+      }
+      {
+        name: 'PUBLIC_BASE_URL'
+        value: 'https://ca-${namePrefix}-web.${containerAppsEnv.outputs.defaultDomain}'
+      }
+      {
+        name: 'NODE_ENV'
+        value: 'production'
+      }
+      {
+        name: 'LOG_LEVEL'
+        value: 'info'
+      }
+      {
+        name: 'AUTH_DISABLED'
+        value: '${authDisabled}'
+      }
+      {
+        name: 'RUN_MIGRATIONS_ON_STARTUP'
+        value: '${runMigrationsOnStartup}'
       }
     ]
   }
@@ -104,7 +169,8 @@ output containerAppName string = containerApp.outputs.name
 output containerAppFqdn string = containerApp.outputs.fqdn
 output acrName string = acr.outputs.name
 output acrLoginServer string = acr.outputs.loginServer
-output postgresServiceName string = postgres.outputs.name
+output postgresServerName string = postgresFlex.outputs.name
+output postgresFqdn string = postgresFlex.outputs.fqdn
 output postgresDatabaseName string = postgresDatabaseName
 output keyVaultName string = keyVault.outputs.name
 output managedIdentityClientId string = managedIdentity.outputs.clientId

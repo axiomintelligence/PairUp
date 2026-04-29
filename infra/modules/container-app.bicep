@@ -9,10 +9,19 @@ param cpu string = '0.25'
 param memory string = '0.5Gi'
 param minReplicas int = 0
 param maxReplicas int = 3
-param targetPort int = 80
+param targetPort int = 8080
 
-@description('Container Apps dev-service IDs to bind into the app (e.g. Postgres add-on). Each entry: { serviceId: <id>, name: <bindName> }.')
+@description('Container Apps dev-service IDs to bind into the app (e.g. Postgres add-on). Each entry: { serviceId: <id>, name: <bindName> }. Empty for the Phase 1 Postgres-Flex topology.')
 param serviceBinds array = []
+
+@description('Plain env vars (name + value).')
+param env array = []
+
+@description('Key Vault-backed secrets. Each entry: { name: <secretRef>, keyVaultUrl: <https://...>, identity: <UAMI resource id> }. Referenced from `env` via `secretRef`.')
+param keyVaultSecrets array = []
+
+@description('Probe path for liveness + readiness. /api/health for the Fastify backend; / for the legacy nginx Phase 0 image.')
+param probePath string = '/api/health'
 
 resource app 'Microsoft.App/containerApps@2024-10-02-preview' = {
   name: name
@@ -46,6 +55,15 @@ resource app 'Microsoft.App/containerApps@2024-10-02-preview' = {
           identity: managedIdentityId
         }
       ]
+      // Container Apps `secrets` block — every entry exposes the secret as
+      // `secretref:<name>` to env vars. `keyVaultUrl` resolves to "latest" when
+      // no version segment is appended; the UAMI must have `Key Vault Secrets
+      // User` on the vault (see keyvault.bicep).
+      secrets: [for s in keyVaultSecrets: {
+        name: s.name
+        keyVaultUrl: s.keyVaultUrl
+        identity: s.identity
+      }]
     }
     template: {
       serviceBinds: [for b in serviceBinds: {
@@ -60,11 +78,12 @@ resource app 'Microsoft.App/containerApps@2024-10-02-preview' = {
             cpu: json(cpu)
             memory: memory
           }
+          env: env
           probes: [
             {
               type: 'Liveness'
               httpGet: {
-                path: '/'
+                path: probePath
                 port: targetPort
               }
               periodSeconds: 30
@@ -74,7 +93,7 @@ resource app 'Microsoft.App/containerApps@2024-10-02-preview' = {
             {
               type: 'Readiness'
               httpGet: {
-                path: '/'
+                path: probePath
                 port: targetPort
               }
               periodSeconds: 10

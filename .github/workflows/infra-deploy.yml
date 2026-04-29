@@ -41,21 +41,34 @@ jobs:
         run: |
           az group create -n "$AZURE_RESOURCE_GROUP" -l "$AZURE_LOCATION" --tags app=pairup environment=production
 
+      # The Postgres Flex admin password lives in the `POSTGRES_ADMIN_PASSWORD`
+      # repository secret. Bootstrap once with:
+      #
+      #   gh secret set POSTGRES_ADMIN_PASSWORD --body "$(openssl rand -base64 24 | tr -d '+/=')"
+      #
+      # The full DATABASE_URL is reassembled by the Bicep template and stored
+      # as `database-url` in Key Vault; the container app reads it via secretRef.
       - name: Bicep what-if
         if: inputs.mode == 'what-if'
+        env:
+          POSTGRES_ADMIN_PASSWORD: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
         run: |
           az deployment group what-if \
             -g "$AZURE_RESOURCE_GROUP" \
             -f "$BICEP_FILE" \
-            -p "@$BICEP_PARAMS"
+            -p "@$BICEP_PARAMS" \
+            -p postgresAdminPassword="$POSTGRES_ADMIN_PASSWORD"
 
       - name: Bicep deploy
         if: inputs.mode == 'deploy'
+        env:
+          POSTGRES_ADMIN_PASSWORD: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
         run: |
           az deployment group create \
             -g "$AZURE_RESOURCE_GROUP" \
             -f "$BICEP_FILE" \
             -p "@$BICEP_PARAMS" \
+            -p postgresAdminPassword="$POSTGRES_ADMIN_PASSWORD" \
             --query 'properties.outputs' -o json | tee deploy-outputs.json
 
       - name: Summarise outputs
