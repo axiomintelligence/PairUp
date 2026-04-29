@@ -20,6 +20,7 @@ import { mockOidcDiscoveryUrl, registerMockOidc } from './auth/mock-oidc.js';
 import { registerAuthRoutes } from './routes/auth.js';
 import { registerOpsRoutes } from './routes/ops.js';
 import { registerProfileRoutes } from './routes/profile.js';
+import { isAuthDisabled, getOrCreateDemoUser } from './auth/demo-user.js';
 import { registerMatchesRoutes } from './routes/matches.js';
 import { registerSearchPrefsRoutes } from './routes/search-prefs.js';
 import { registerConnectionsRoutes } from './routes/connections.js';
@@ -129,9 +130,27 @@ export async function buildServer(opts: BuildServerOptions = {}): Promise<Fastif
       redirectUri,
     });
     await registerAuthRoutes(app, { oidc, mockOidc: useMockOidc });
+  } else if (isAuthDisabled()) {
+    // Stub /api/auth/me so the SPA bootstrap sees the demo user as
+    // authenticated. /api/auth/login + /logout are intentionally unregistered;
+    // the SPA's sign-in screen is hidden because /api/auth/me reports
+    // authenticated:true on every load.
+    app.get('/api/auth/me', async () => {
+      const user = await getOrCreateDemoUser();
+      return {
+        authenticated: true,
+        user: {
+          id: user.id,
+          email: user.email,
+          displayName: user.displayName,
+          isAdmin: user.isAdmin,
+        },
+      };
+    });
   } else {
     app.log.warn(
-      'OIDC_DISCOVERY_URL not set and MOCK_OIDC!=true; /api/auth/* routes are not registered',
+      'OIDC_DISCOVERY_URL not set, MOCK_OIDC!=true, AUTH_DISABLED!=true — ' +
+        '/api/auth/* routes are not registered',
     );
   }
 
