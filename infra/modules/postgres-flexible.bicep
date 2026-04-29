@@ -108,6 +108,20 @@ resource db 'Microsoft.DBforPostgreSQL/flexibleServers/databases@2024-08-01' = {
   }
 }
 
+// Azure Postgres Flex blocks `CREATE EXTENSION` for any extension not listed
+// in the `azure.extensions` server parameter. Migration 1730000000000_initial-
+// schema requires `citext` (case-insensitive email) and `pgcrypto`
+// (gen_random_uuid). Allowlisting them here lets migrations succeed on first
+// boot. This is a static config change (no restart needed for these).
+resource extAllowlist 'Microsoft.DBforPostgreSQL/flexibleServers/configurations@2024-08-01' = {
+  parent: pg
+  name: 'azure.extensions'
+  properties: {
+    value: 'CITEXT,PGCRYPTO'
+    source: 'user-override'
+  }
+}
+
 // SSL is required by default on Flex; pg drivers must use sslmode=require.
 // libpq parses `sslmode=require` from a query string on the connection URI
 // without further config, which is what we emit in main.bicep.

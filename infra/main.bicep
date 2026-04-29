@@ -152,13 +152,16 @@ module containerApp 'modules/container-app.bicep' = {
         name: 'LOG_LEVEL'
         value: 'info'
       }
+      // Bicep `string()` of a bool emits 'True'/'False'; the Node process
+      // reads `process.env.X === 'true'` (lowercase), so emit explicit
+      // lowercase strings here.
       {
         name: 'AUTH_DISABLED'
-        value: '${authDisabled}'
+        value: authDisabled ? 'true' : 'false'
       }
       {
         name: 'RUN_MIGRATIONS_ON_STARTUP'
-        value: '${runMigrationsOnStartup}'
+        value: runMigrationsOnStartup ? 'true' : 'false'
       }
     ]
   }
