@@ -13,6 +13,7 @@ import {
 } from 'fastify-type-provider-zod';
 import errorHandler from './plugins/error-handler.js';
 import openapi from './plugins/openapi.js';
+import securityHeaders from './plugins/security-headers.js';
 import accessGate from './middleware/access-gate.js';
 import { OidcClient } from './auth/oidc-client.js';
 import { mockOidcDiscoveryUrl, registerMockOidc } from './auth/mock-oidc.js';
@@ -81,6 +82,7 @@ export async function buildServer(opts: BuildServerOptions = {}): Promise<Fastif
   });
   await app.register(errorHandler);
   await app.register(openapi);
+  await app.register(securityHeaders);
 
   // Mock OIDC — dev-only. Mounted before the access gate so its endpoints are
   // reachable; the gate's PUBLIC_PREFIXES list also exempts /__mock-oidc.
