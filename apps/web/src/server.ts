@@ -106,18 +106,8 @@ export async function buildServer(opts: BuildServerOptions = {}): Promise<Fastif
   await registerMeRoutes(app);
   await registerAdminRoutes(app);
 
-  // Static frontend bundle (built by @pairup/frontend → apps/web/public/).
-  // dist/server.js → ../public is apps/web/public/.
-  const publicDir = path.resolve(
-    path.dirname(fileURLToPath(import.meta.url)),
-    '../public',
-  );
-  await app.register(fastifyStatic, {
-    root: publicDir,
-    wildcard: false,
-    prefix: '/',
-  });
-
+  // Auth + /api/auth/* routes — register BEFORE @fastify/static so the static
+  // catch-all on `/` doesn't shadow API paths under /api/auth/.
   if (process.env.OIDC_DISCOVERY_URL || useMockOidc) {
     const discoveryUrl = process.env.OIDC_DISCOVERY_URL ?? mockOidcDiscoveryUrl(publicBaseUrl());
     const clientId = process.env.OIDC_CLIENT_ID ?? 'pairup-dev';
@@ -153,6 +143,19 @@ export async function buildServer(opts: BuildServerOptions = {}): Promise<Fastif
         '/api/auth/* routes are not registered',
     );
   }
+
+  // Static frontend bundle (built by @pairup/frontend → apps/web/public/).
+  // dist/server.js → ../public is apps/web/public/. Registered AFTER all
+  // /api/* routes so the catch-all on `/` doesn't shadow API paths.
+  const publicDir = path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    '../public',
+  );
+  await app.register(fastifyStatic, {
+    root: publicDir,
+    wildcard: false,
+    prefix: '/',
+  });
 
   return app;
 }
