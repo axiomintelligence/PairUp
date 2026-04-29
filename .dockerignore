@@ -1,0 +1,15 @@
+# Build context is the monorepo root. Keep the context small.
+**/node_modules/
+**/dist/
+apps/web/public/
+.git/
+.github/
+.vscode/
+.idea/
+.DS_Store
+*.log
+docs/
+infra/bicep/
+infra/terraform/.terraform/
+apps/web-static/
+tests/

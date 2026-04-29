@@ -1,13 +1,18 @@
 name: App deploy (build + push + revision update)
 
-# Phase 0: builds and ships apps/web-static (nginx static demo).
-# When PR 13 (AXI-122) lands, switch to apps/web (Fastify single-container).
+# Phase 1: builds the apps/web Fastify single-container (Node 20 + frontend
+# bundle + migrations) and rolls a new revision on ca-pairup-web.
 
 on:
   push:
     branches: [main]
     paths:
-      - 'apps/web-static/**'
+      - 'apps/web/**'
+      - 'packages/**'
+      - 'migrations/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.dockerignore'
       - '.github/workflows/app-deploy.yml'
   workflow_dispatch: {}
 
@@ -20,7 +25,7 @@ env:
   ACR_NAME: acrpairupuksouth
   CONTAINER_APP_NAME: ca-pairup-web
   IMAGE_REPO: pairup-web
-  BUILD_CONTEXT: apps/web-static
+  DOCKERFILE: apps/web/Dockerfile
 
 jobs:
   build-and-deploy:
@@ -44,8 +49,8 @@ jobs:
             --registry "$ACR_NAME" \
             --image "${IMAGE_REPO}:${TAG}" \
             --image "${IMAGE_REPO}:latest" \
-            --file "${BUILD_CONTEXT}/Dockerfile" \
-            "${BUILD_CONTEXT}"
+            --file "${DOCKERFILE}" \
+            .
           echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG"     >> "$GITHUB_OUTPUT"
 
@@ -65,12 +70,13 @@ jobs:
             --query 'properties.configuration.ingress.fqdn' -o tsv)
           echo "FQDN: $FQDN"
           for i in 1 2 3 4 5 6; do
-            CODE=$(curl -fsS -o response.html -w '%{http_code}' "https://$FQDN/" || echo "000")
-            if [ "$CODE" = "200" ] && grep -q '<title>FCDO PairUp</title>' response.html; then
-              echo "Smoke test passed (HTTP $CODE, title matched)"
+            CODE_HEALTH=$(curl -fsS -o /dev/null -w '%{http_code}' "https://$FQDN/api/health" || echo "000")
+            CODE_HTML=$(curl -fsS -o response.html -w '%{http_code}' "https://$FQDN/" || echo "000")
+            if [ "$CODE_HEALTH" = "200" ] && [ "$CODE_HTML" = "200" ] && grep -q '<title>FCDO PairUp</title>' response.html; then
+              echo "Smoke test passed (api/health HTTP $CODE_HEALTH; / HTTP $CODE_HTML, title matched)"
               exit 0
             fi
-            echo "Attempt $i: HTTP $CODE — retrying in 10s"
+            echo "Attempt $i: api/health=$CODE_HEALTH /=$CODE_HTML — retrying in 10s"
             sleep 10
           done
           echo "Smoke test failed"
