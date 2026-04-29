@@ -2,6 +2,10 @@
 
 Day-1 bootstrap and day-2 operations for the deployment described in [azure-uksouth-plan.md](azure-uksouth-plan.md).
 
+> **End-of-life:** [../decommission.md](../decommission.md) carries the T-30 / T-14 / T-0 / T+30 sequence, audit-log handover, and `terraform destroy` step.
+>
+> **Privacy:** [../dpia.md](../dpia.md) is the DPIA template — DPO sign-off gates Phase 2 (HLD §16.2).
+
 Subscription: `acb7f374-57b1-4bc8-bd61-676c3947b148` (Microsoft Azure Sponsorship, AXIOM INTELLIGENCE LTD).
 Resource group: `rg-pairup-uksouth`.
 

@@ -50,7 +50,7 @@ open http://localhost:8765/
 
 ## Deployment (Azure UK South)
 
-Phase 0 is hosted in resource group `rg-pairup-uksouth` (Microsoft Azure Sponsorship subscription). Architecture is documented in [docs/deployment/azure-uksouth-plan.md](docs/deployment/azure-uksouth-plan.md); day-2 ops are in [docs/deployment/runbook.md](docs/deployment/runbook.md).
+Phase 0 is hosted in resource group `rg-pairup-uksouth` (Microsoft Azure Sponsorship subscription). Architecture is documented in [docs/deployment/azure-uksouth-plan.md](docs/deployment/azure-uksouth-plan.md); day-2 ops are in [docs/deployment/runbook.md](docs/deployment/runbook.md); the planned wind-down sequence is in [docs/decommission.md](docs/decommission.md); the [DPIA template](docs/dpia.md) is sealed by the DPO before Phase 2 admits live data.
 
 **Phase 0 stack** (live today):
 
