@@ -62,8 +62,11 @@ body {
 
 /* ─── Main layout ──────────────────────────────────────────────────── */
 .app-main { max-width: 700px; margin: 0 auto; padding: 0 0 60px; }
-.tab-content { display: none; }
-.tab-content.active { display: block; }
+/* Tab sections are shown/hidden via the `hidden` attribute (toggled in
+   main.ts → show()); the older `.active`-class pattern is also honoured for
+   any markup that sets it directly. */
+.tab-content { display: block; }
+.tab-content[hidden] { display: none; }
 .tab-inner { padding: 20px 18px; }
 
 /* Matches & Connected tabs: wrap content in a cream panel for readability */
