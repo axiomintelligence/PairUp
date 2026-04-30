@@ -22,15 +22,22 @@ async function errorHandlerPlugin(app: FastifyInstance): Promise<void> {
       return;
     }
 
-    if ((err as FastifyError).validation) {
+    const fe = err as FastifyError;
+    const statusCode = fe.statusCode ?? 500;
+
+    // Validation errors come from two paths: classic Fastify validators
+    // (which set `err.validation`) and `fastify-type-provider-zod` (which
+    // throws a plain `Error` carrying the zod issues as JSON in `.message`
+    // and is wrapped by Fastify with `code === 'FST_ERR_VALIDATION'`). All
+    // ApiException-derived 400s have already been handled above, so any
+    // remaining 400 here is a request-shape problem.
+    if (fe.validation || fe.code === 'FST_ERR_VALIDATION' || statusCode === 400) {
       req.log.info({ err }, 'request validation failed');
       reply
         .code(400)
-        .send(shapeErrorBody('validation_error', err.message));
+        .send(shapeErrorBody('validation_error', err.message ?? 'Bad request'));
       return;
     }
-
-    const statusCode = (err as FastifyError).statusCode ?? 500;
 
     if (statusCode >= 500) {
       // Don't leak internal error messages.
@@ -39,10 +46,20 @@ async function errorHandlerPlugin(app: FastifyInstance): Promise<void> {
       return;
     }
 
-    // 4xx pass-throughs (e.g. 404 from notFound() handler)
+    // 4xx fall-throughs. Map well-known statuses to their canonical codes;
+    // anything else surfaces as `not_found` (the closest 4xx code in our
+    // envelope) so we don't leak a misleading default.
+    const fallback4xxCode: 'not_authenticated' | 'forbidden' | 'not_found' | 'conflict' =
+      statusCode === 401
+        ? 'not_authenticated'
+        : statusCode === 403
+          ? 'forbidden'
+          : statusCode === 409
+            ? 'conflict'
+            : 'not_found';
     reply
       .code(statusCode)
-      .send(shapeErrorBody('not_found', err.message ?? 'Not found'));
+      .send(shapeErrorBody(fallback4xxCode, err.message ?? 'Request failed'));
   });
 
   app.setNotFoundHandler((req, reply) => {
