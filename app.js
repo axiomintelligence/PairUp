@@ -22,8 +22,26 @@ function defaultState() {
   };
 }
 
+// ── Identity (Entra ID) ──────────────────────────────────────────────────
+let identity = null;            // { id, email, displayName, isAdmin, authMode }
+
+async function fetchIdentity() {
+  const r = await fetch('/auth/me', { credentials: 'same-origin' });
+  if (r.status === 401) {
+    // Server says not signed in — bounce to login with current path as next.
+    location.href = '/auth/login?next=' + encodeURIComponent(location.pathname + location.search);
+    return null;
+  }
+  if (!r.ok) throw new Error(`GET /auth/me ${r.status}`);
+  return r.json();
+}
+
 async function fetchState() {
   const r = await fetch('/api/state', { credentials: 'same-origin' });
+  if (r.status === 401) {
+    location.href = '/auth/login?next=' + encodeURIComponent(location.pathname);
+    throw new Error('not authenticated');
+  }
   if (!r.ok) throw new Error(`GET /api/state ${r.status}`);
   return (await r.json()).state || {};
 }
@@ -181,14 +199,11 @@ async function fetchWeights() {
 }
 
 async function saveWeights(w) {
-  // Admin passphrase is captured by the unlock dialog and stashed in sessionStorage
-  // for the duration of the session.
-  const pass = sessionStorage.getItem('pairup_admin_pass') || '';
   try {
     const r = await fetch('/api/admin/weights', {
       method: 'PUT',
       credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json', 'X-Admin-Passphrase': pass },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(w),
     });
     if (!r.ok) console.error('[saveWeights] HTTP', r.status);
@@ -1768,6 +1783,11 @@ updateCompleteness();
 renderConnectionBanner();
 
 async function bootstrapState() {
+  // Identity first — if it's null we've already redirected to /auth/login.
+  identity = await fetchIdentity();
+  if (!identity) return;
+  applyIdentityToHeader();
+
   let serverState = {};
   try {
     serverState = await fetchState();
@@ -1838,52 +1858,14 @@ function closeAboutIfBg(e) { if (e.target === document.getElementById('aboutOver
 
 // ─── Admin modal ──────────────────────────────────────────────────────────────
 
-function isAdminUnlocked() { return !!sessionStorage.getItem('pairup_admin_pass'); }
-
-function checkAndShowAdmin() {
-  if (isAdminUnlocked()) {
-    openAdminPanel();
-  } else {
-    document.getElementById('adminUnlockOverlay').classList.add('open');
-    document.getElementById('adminPassInput').value = '';
-    document.getElementById('adminPassError').style.display = 'none';
-    setTimeout(() => document.getElementById('adminPassInput').focus(), 100);
-  }
-}
-
+// Admin access is now gated server-side via ALLOWED_ADMIN_EMAILS — no
+// client-side passphrase. The gear icon is only shown to admins (handled by
+// applyIdentityToHeader); clicking it opens the panel directly.
+function checkAndShowAdmin() { openAdminPanel(); }
 document.getElementById('adminBtn').addEventListener('click', checkAndShowAdmin);
 
-async function tryAdminUnlock(pass) {
-  try {
-    const r = await fetch('/api/admin/check', {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: { 'X-Admin-Passphrase': pass },
-    });
-    return r.ok;
-  } catch (e) { return false; }
-}
-
-document.getElementById('adminPassSubmit').addEventListener('click', async () => {
-  const val = document.getElementById('adminPassInput').value.trim();
-  if (!val) return;
-  const ok = await tryAdminUnlock(val);
-  if (ok) {
-    sessionStorage.setItem('pairup_admin_pass', val);
-    closeUnlock();
-    openAdminPanel();
-  } else {
-    document.getElementById('adminPassError').style.display = 'block';
-    document.getElementById('adminPassInput').value = '';
-  }
-});
-
-document.getElementById('adminPassInput').addEventListener('keydown', e => {
-  if (e.key === 'Enter') document.getElementById('adminPassSubmit').click();
-});
-
-function closeUnlock() { document.getElementById('adminUnlockOverlay').classList.remove('open'); }
-function closeUnlockIfBg(e) { if (e.target === document.getElementById('adminUnlockOverlay')) closeUnlock(); }
+function closeUnlock() { document.getElementById('adminUnlockOverlay')?.classList.remove('open'); }
+function closeUnlockIfBg() { closeUnlock(); }
 
 function openAdminPanel() {
   syncGradePenaltyRadios();
@@ -1908,21 +1890,20 @@ document.querySelectorAll('.admin-tab').forEach((t) => {
   t.addEventListener('click', () => switchAdminTab(t.dataset.adminTab));
 });
 
-function adminAuthHeaders() {
-  return { 'X-Admin-Passphrase': sessionStorage.getItem('pairup_admin_pass') || '' };
-}
-
 async function adminFetch(path, init = {}) {
   const r = await fetch(path, {
     ...init,
     credentials: 'same-origin',
-    headers: { ...(init.headers || {}), ...adminAuthHeaders() },
+    headers: { ...(init.headers || {}) },
   });
+  if (r.status === 401) {
+    location.href = '/auth/login?next=' + encodeURIComponent(location.pathname);
+    throw new Error('not authenticated');
+  }
   if (r.status === 403) {
-    sessionStorage.removeItem('pairup_admin_pass');
     closeAdmin();
-    checkAndShowAdmin();
-    throw new Error('admin auth lost');
+    alert('You are not authorised for admin actions.');
+    throw new Error('not admin');
   }
   return r;
 }
@@ -2129,13 +2110,34 @@ if (resetBtn) resetBtn.addEventListener('click', () => {
 });
 
 const lockBtn = document.getElementById('adminLockBtn');
-if (lockBtn) lockBtn.addEventListener('click', () => {
-  sessionStorage.removeItem('pairup_admin_pass');
+if (lockBtn) lockBtn.addEventListener('click', async () => {
   closeAdmin();
+  // Server-side session destroy. After logout the next request will 401 and
+  // bounce to /auth/login.
+  try { await fetch('/auth/logout', { method: 'POST', credentials: 'same-origin' }); } catch {}
+  location.href = '/';
 });
 
-// Quick-open admin via Ctrl+Shift+A — the gear icon is always visible now,
-// so we no longer need an easter-egg reveal path.
+function applyIdentityToHeader() {
+  const adminBtn = document.getElementById('adminBtn');
+  if (!adminBtn) return;
+  if (identity?.isAdmin) {
+    adminBtn.style.display = 'flex';
+    adminBtn.title = `Admin (${identity.email})`;
+  } else {
+    adminBtn.style.display = 'none';
+  }
+  const idEl = document.getElementById('userIdentity');
+  if (idEl && identity) {
+    const initials = (identity.displayName || identity.email || '?')
+      .split(/\s+/).map((s) => s[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
+    idEl.querySelector('.user-initials').textContent = initials || '?';
+    idEl.querySelector('.user-name').textContent = identity.displayName || identity.email;
+    idEl.querySelector('.user-email').textContent = identity.email;
+    idEl.style.display = 'flex';
+  }
+}
+
 document.addEventListener('keydown', (e) => {
-  if (e.ctrlKey && e.shiftKey && e.key === 'A') checkAndShowAdmin();
+  if (e.ctrlKey && e.shiftKey && e.key === 'A' && identity?.isAdmin) checkAndShowAdmin();
 });

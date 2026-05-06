@@ -21,13 +21,16 @@ services:
       db:
         condition: service_healthy
     environment:
+      NODE_ENV: development
       PGHOST: db
       PGPORT: 5432
       PGUSER: pairup
       PGPASSWORD: pairup_local
       PGDATABASE: pairup
       PGSSL: disable
-      ADMIN_PASSPHRASE: localdev
+      AUTH_DEV_MODE: "true"
+      SESSION_SECRET: dev-only-session-secret
+      ALLOWED_ADMIN_EMAILS: dev@example.com,admin@example.com
       PORT: 8080
     ports:
       - "8080:8080"

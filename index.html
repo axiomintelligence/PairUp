@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap">
-  <link rel="stylesheet" href="styles.css?v=5">
+  <link rel="stylesheet" href="styles.css?v=6">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
@@ -38,7 +38,14 @@
           </svg>
           <span>About</span>
         </button>
-        <button class="admin-btn" id="adminBtn" title="Admin" aria-label="Admin">
+        <div class="user-chip" id="userIdentity" style="display:none">
+          <span class="user-initials"></span>
+          <span class="user-meta">
+            <span class="user-name"></span>
+            <span class="user-email"></span>
+          </span>
+        </div>
+        <button class="admin-btn" id="adminBtn" title="Admin" aria-label="Admin" style="display:none">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.6"/>
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
@@ -680,23 +687,10 @@
     </div>
   </div>
 
-  <!-- Admin unlock dialog -->
-  <div class="modal-overlay" id="adminUnlockOverlay" onclick="closeUnlockIfBg(event)">
-    <div class="modal-box" style="max-width:360px;text-align:center;padding:32px 28px;">
-      <button class="modal-close" onclick="closeUnlock()">x</button>
-      <div style="font-size:28px;margin-bottom:12px;">🔐</div>
-      <div style="font-size:15px;font-weight:700;color:#0f172a;margin-bottom:6px;letter-spacing:-0.015em;">Admin access</div>
-      <div style="font-size:13px;color:#64748b;margin-bottom:20px;">Enter the admin passphrase to access matching weight settings.</div>
-      <input type="password" id="adminPassInput" class="text-input" placeholder="Passphrase" style="text-align:center;margin-bottom:12px;">
-      <button class="admin-save-btn" id="adminPassSubmit" style="width:100%;">Unlock</button>
-      <div id="adminPassError" style="font-size:12px;color:#b91c1c;margin-top:10px;display:none;">Incorrect passphrase.</div>
-    </div>
-  </div>
-
   <!-- Version -->
   <div class="app-version">v1.12</div>
 
-  <script src="data.js?v=5"></script>
-  <script src="app.js?v=5"></script>
+  <script src="data.js?v=6"></script>
+  <script src="app.js?v=6"></script>
 </body>
 </html>
