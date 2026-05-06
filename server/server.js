@@ -106,6 +106,80 @@ app.get('/api/admin/weights', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+function requireAdmin(req, res) {
+  if (!ADMIN_PASSPHRASE) {
+    res.status(503).json({ error: 'admin disabled' });
+    return false;
+  }
+  if (!verifyAdminPassphrase(req)) {
+    res.status(403).json({ error: 'forbidden' });
+    return false;
+  }
+  return true;
+}
+
+app.get('/api/admin/stats', async (req, res, next) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    const r = await pool.query(`
+      SELECT
+        COUNT(*)::int AS total,
+        COUNT(*) FILTER (WHERE state ? 'profile' AND state->'profile' IS NOT NULL AND state->'profile' <> 'null'::jsonb)::int AS with_profile,
+        COUNT(*) FILTER (WHERE updated_at >= NOW() - INTERVAL '7 days')::int AS active_7d,
+        COUNT(*) FILTER (WHERE updated_at >= NOW() - INTERVAL '30 days')::int AS active_30d
+      FROM user_state
+    `);
+    res.json(r.rows[0]);
+  } catch (e) { next(e); }
+});
+
+app.get('/api/admin/users', async (req, res, next) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    const r = await pool.query(`
+      SELECT
+        user_id,
+        state->'profile'->>'name'        AS name,
+        state->'profile'->>'grade'       AS grade,
+        state->'profile'->>'location'    AS location,
+        state->'profile'->'directorates' AS directorates,
+        (state->'profile'->>'lastActive')::bigint AS last_active,
+        jsonb_array_length(COALESCE(state->'connections', '[]'::jsonb)) AS connections,
+        jsonb_array_length(COALESCE(state->'sentRequests', '[]'::jsonb)) AS sent,
+        jsonb_array_length(COALESCE(state->'receivedRequests', '[]'::jsonb)) AS received,
+        updated_at
+      FROM user_state
+      ORDER BY updated_at DESC
+      LIMIT 200
+    `);
+    res.json(r.rows);
+  } catch (e) { next(e); }
+});
+
+app.get('/api/admin/users/:id', async (req, res, next) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    const r = await pool.query(
+      'SELECT user_id, state, updated_at FROM user_state WHERE user_id = $1',
+      [req.params.id]
+    );
+    if (r.rows.length === 0) return res.status(404).json({ error: 'not_found' });
+    res.json(r.rows[0]);
+  } catch (e) { next(e); }
+});
+
+app.delete('/api/admin/users/:id', async (req, res, next) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    const r = await pool.query(
+      'DELETE FROM user_state WHERE user_id = $1 RETURNING user_id',
+      [req.params.id]
+    );
+    if (r.rows.length === 0) return res.status(404).json({ error: 'not_found' });
+    res.json({ ok: true, deletedId: r.rows[0].user_id });
+  } catch (e) { next(e); }
+});
+
 app.put('/api/admin/weights', async (req, res, next) => {
   try {
     if (!ADMIN_PASSPHRASE) return res.status(503).json({ error: 'admin disabled (no passphrase configured)' });
@@ -137,11 +211,16 @@ app.get('/healthz', async (_req, res) => {
 
 app.use(
   express.static(PUBLIC_DIR, {
+    etag: true,
+    lastModified: true,
     setHeaders: (res, filePath) => {
       if (filePath.endsWith('index.html')) {
         res.setHeader('Cache-Control', 'no-store');
-      } else if (/\.(js|css|svg|ico|png|webp|woff2?)$/.test(filePath)) {
-        res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
+      } else if (/\.(js|css)$/.test(filePath)) {
+        // App code/styles aren't content-hashed yet — let browsers revalidate.
+        res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+      } else if (/\.(svg|ico|png|webp|woff2?)$/.test(filePath)) {
+        res.setHeader('Cache-Control', 'public, max-age=86400');
       }
     },
   })

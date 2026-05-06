@@ -1842,6 +1842,188 @@ function closeUnlockIfBg(e) { if (e.target === document.getElementById('adminUnl
 function openAdminPanel() {
   syncGradePenaltyRadios();
   document.getElementById('adminOverlay').classList.add('open');
+  switchAdminTab('overview');
+}
+
+// ─── Admin: tab switching ─────────────────────────────────────────────────────
+
+function switchAdminTab(tab) {
+  document.querySelectorAll('.admin-tab').forEach((t) => {
+    t.classList.toggle('active', t.dataset.adminTab === tab);
+  });
+  document.querySelectorAll('.admin-tab-pane').forEach((p) => {
+    p.classList.toggle('active', p.dataset.adminPane === tab);
+  });
+  if (tab === 'overview') loadAdminStats();
+  if (tab === 'users') loadAdminUsers();
+}
+
+document.querySelectorAll('.admin-tab').forEach((t) => {
+  t.addEventListener('click', () => switchAdminTab(t.dataset.adminTab));
+});
+
+function adminAuthHeaders() {
+  return { 'X-Admin-Passphrase': sessionStorage.getItem('pairup_admin_pass') || '' };
+}
+
+async function adminFetch(path, init = {}) {
+  const r = await fetch(path, {
+    credentials: 'same-origin',
+    headers: { ...(init.headers || {}), ...adminAuthHeaders() },
+    ...init,
+  });
+  if (r.status === 403) {
+    sessionStorage.removeItem('pairup_admin_pass');
+    closeAdmin();
+    checkAndShowAdmin();
+    throw new Error('admin auth lost');
+  }
+  return r;
+}
+
+// ─── Admin: stats ─────────────────────────────────────────────────────────────
+
+async function loadAdminStats() {
+  try {
+    const r = await adminFetch('/api/admin/stats');
+    if (!r.ok) throw new Error(`stats ${r.status}`);
+    const stats = await r.json();
+    ['total', 'with_profile', 'active_7d', 'active_30d'].forEach((k) => {
+      const el = document.querySelector(`[data-stat="${k}"]`);
+      if (el) el.textContent = stats[k] ?? '0';
+    });
+    const note = document.getElementById('adminOverviewNote');
+    if (note) {
+      const completion = stats.total ? Math.round((stats.with_profile / stats.total) * 100) : 0;
+      note.textContent = `${completion}% of registered users have completed a profile.`;
+      note.classList.add('show');
+    }
+  } catch (e) { console.error('[admin stats]', e); }
+}
+
+// ─── Admin: user list ─────────────────────────────────────────────────────────
+
+let _adminUsers = [];
+
+async function loadAdminUsers() {
+  const list = document.getElementById('adminUserList');
+  list.innerHTML = '<div class="admin-user-empty">Loading users…</div>';
+  try {
+    const r = await adminFetch('/api/admin/users');
+    if (!r.ok) throw new Error(`users ${r.status}`);
+    _adminUsers = await r.json();
+    renderAdminUsers();
+  } catch (e) {
+    console.error('[admin users]', e);
+    list.innerHTML = '<div class="admin-user-empty">Failed to load users.</div>';
+  }
+}
+
+function renderAdminUsers() {
+  const filterEl = document.getElementById('adminUserSearch');
+  const q = (filterEl?.value || '').toLowerCase().trim();
+  const list = document.getElementById('adminUserList');
+  const filtered = !q ? _adminUsers : _adminUsers.filter((u) => {
+    const blob = `${u.name || ''} ${u.grade || ''} ${u.location || ''}`.toLowerCase();
+    return blob.includes(q);
+  });
+  if (!filtered.length) {
+    list.innerHTML = `<div class="admin-user-empty">${_adminUsers.length === 0 ? 'No users yet.' : 'No matches.'}</div>`;
+    return;
+  }
+  list.innerHTML = filtered.map((u) => {
+    const name = u.name ? escapeHtml(u.name) : '<span class="no-profile">(no profile)</span>';
+    const meta = [u.grade, u.location].filter(Boolean).map(escapeHtml).join(' · ') || '—';
+    const age = relativeShort(new Date(u.updated_at).getTime());
+    const conn = u.connections > 0 ? `${u.connections} conn` : '';
+    return `<div class="admin-user-row" data-uid="${escapeHtml(u.user_id)}">
+      <div>
+        <div class="admin-user-name">${name}</div>
+        <div class="admin-user-meta">${meta} · seen ${age}</div>
+      </div>
+      <div class="admin-user-conn">${conn}</div>
+      <div class="admin-user-meta">›</div>
+    </div>`;
+  }).join('');
+  list.querySelectorAll('.admin-user-row').forEach((row) => {
+    row.addEventListener('click', () => openAdminUser(row.dataset.uid));
+  });
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+function relativeShort(ts) {
+  if (!ts) return '—';
+  const diff = Date.now() - ts;
+  const m = Math.round(diff / 60000);
+  if (m < 60) return `${m}m`;
+  const h = Math.round(m / 60);
+  if (h < 48) return `${h}h`;
+  const d = Math.round(h / 24);
+  if (d < 60) return `${d}d`;
+  return `${Math.round(d / 30)}mo`;
+}
+
+document.getElementById('adminUserSearch')?.addEventListener('input', renderAdminUsers);
+document.getElementById('adminUsersRefresh')?.addEventListener('click', loadAdminUsers);
+
+// ─── Admin: user detail modal ─────────────────────────────────────────────────
+
+async function openAdminUser(userId) {
+  try {
+    const r = await adminFetch(`/api/admin/users/${encodeURIComponent(userId)}`);
+    if (!r.ok) throw new Error(`detail ${r.status}`);
+    const data = await r.json();
+    const profile = data.state?.profile;
+    const body = document.getElementById('adminUserBody');
+    const name = profile?.name ? escapeHtml(profile.name) : '<em style="color:var(--text-muted)">(no profile)</em>';
+    const grade = profile?.grade ? escapeHtml(profile.grade) : '—';
+    const loc = profile?.location ? escapeHtml(profile.location) : '—';
+    const last = data.state?.profile?.lastActive
+      ? new Date(data.state.profile.lastActive).toISOString().slice(0, 19).replace('T', ' ')
+      : '—';
+    const updated = new Date(data.updated_at).toISOString().slice(0, 19).replace('T', ' ');
+    body.innerHTML = `
+      <div class="admin-user-detail-header">
+        <div class="admin-user-detail-id">${escapeHtml(data.user_id)}</div>
+        <div class="admin-user-detail-name">${name}</div>
+        <div class="admin-user-detail-row">
+          <span>Grade: ${grade}</span>
+          <span>Location: ${loc}</span>
+          <span>Last active: ${last}</span>
+          <span>Updated: ${updated}</span>
+        </div>
+      </div>
+      <div class="admin-user-detail-section">
+        <div class="admin-user-detail-label">State JSON</div>
+        <pre class="admin-user-detail-pre">${escapeHtml(JSON.stringify(data.state, null, 2))}</pre>
+      </div>
+      <div class="admin-user-detail-actions">
+        <button class="admin-user-delete-btn" onclick="deleteAdminUser('${escapeHtml(data.user_id)}')">Delete user</button>
+      </div>
+    `;
+    document.getElementById('adminUserOverlay').classList.add('open');
+  } catch (e) { console.error('[admin user detail]', e); }
+}
+
+function closeAdminUser() { document.getElementById('adminUserOverlay').classList.remove('open'); }
+function closeAdminUserIfBg(e) { if (e.target === document.getElementById('adminUserOverlay')) closeAdminUser(); }
+
+async function deleteAdminUser(userId) {
+  if (!confirm(`Delete user ${userId}? This permanently removes their profile and connections.`)) return;
+  try {
+    const r = await adminFetch(`/api/admin/users/${encodeURIComponent(userId)}`, { method: 'DELETE' });
+    if (!r.ok) throw new Error(`delete ${r.status}`);
+    closeAdminUser();
+    loadAdminUsers();
+    loadAdminStats();
+  } catch (e) {
+    console.error('[admin delete]', e);
+    alert('Failed to delete user.');
+  }
 }
 
 function closeAdmin() { document.getElementById('adminOverlay').classList.remove('open'); }
@@ -1877,18 +2059,8 @@ if (lockBtn) lockBtn.addEventListener('click', () => {
   closeAdmin();
 });
 
-if (isAdminUnlocked()) {
-  document.getElementById('adminBtn').style.display = 'flex';
-}
-
-document.querySelector('.app-version').addEventListener('click', () => {
-  document.getElementById('adminBtn').style.display = 'flex';
-  document.getElementById('adminBtn').title = 'Admin settings (click to unlock)';
-});
-
-document.addEventListener('keydown', e => {
-  if (e.ctrlKey && e.shiftKey && e.key === 'A') {
-    document.getElementById('adminBtn').style.display = 'flex';
-    checkAndShowAdmin();
-  }
+// Quick-open admin via Ctrl+Shift+A — the gear icon is always visible now,
+// so we no longer need an easter-egg reveal path.
+document.addEventListener('keydown', (e) => {
+  if (e.ctrlKey && e.shiftKey && e.key === 'A') checkAndShowAdmin();
 });
