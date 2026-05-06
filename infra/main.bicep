@@ -19,9 +19,22 @@ param containerImage string = 'mcr.microsoft.com/k8se/quickstart:latest'
 @description('Postgres administrator password. Default is a deterministic uniqueString-based value; override at deploy time to rotate.')
 param postgresAdminPassword string = 'Pg!${take(uniqueString(resourceGroup().id, 'pgseed'), 8)}_${take(uniqueString(resourceGroup().id, 'pgseed2'), 12)}aZ1'
 
+@description('Comma-separated list of email addresses authorised for /api/admin/*. Empty disables admin entirely.')
+param allowedAdminEmails string = ''
+
+@description('Entra App Registration (client) ID. Required for non-dev auth; leave blank to fall back to AUTH_DEV_MODE.')
+param entraClientId string = ''
+
+@description('Entra tenant ID — sets AUTH_MICROSOFT_ENTRA_ID_ISSUER to https://login.microsoftonline.com/<tenant>/v2.0.')
+param entraTenantId string = ''
+
 @secure()
-@description('App admin passphrase (gates /api/admin/* routes). Default is deterministic; override at deploy time.')
-param adminPassphrase string = 'admin-${take(uniqueString(resourceGroup().id, 'adminseed'), 12)}'
+@description('Entra App Registration client secret. Stored in Key Vault.')
+param entraClientSecret string = ''
+
+@secure()
+@description('express-session signing key. Stored in Key Vault. Default is a deterministic uniqueString — override to rotate.')
+param sessionSecret string = 'sess-${uniqueString(resourceGroup().id, 'session-v1')}'
 
 var logAnalyticsName = 'log-${namePrefix}-${regionTag}'
 var acrName = toLower('acr${namePrefix}${regionTag}')
@@ -85,11 +98,20 @@ resource pgPasswordSecret 'Microsoft.KeyVault/vaults/secrets@2024-04-01-preview'
   }
 }
 
-resource adminPassphraseSecret 'Microsoft.KeyVault/vaults/secrets@2024-04-01-preview' = {
+resource sessionSecretKv 'Microsoft.KeyVault/vaults/secrets@2024-04-01-preview' = {
   parent: kvRef
-  name: 'app-admin-passphrase'
+  name: 'session-secret'
   properties: {
-    value: adminPassphrase
+    value: sessionSecret
+    contentType: 'text/plain'
+  }
+}
+
+resource entraClientSecretKv 'Microsoft.KeyVault/vaults/secrets@2024-04-01-preview' = if (!empty(entraClientSecret)) {
+  parent: kvRef
+  name: 'entra-client-secret'
+  properties: {
+    value: entraClientSecret
     contentType: 'text/plain'
   }
 }
@@ -125,26 +147,38 @@ module containerApp 'modules/container-app.bicep' = {
     image: containerImage
     targetPort: 8080
     probePath: '/healthz'
-    envVars: [
+    envVars: concat([
       { name: 'PGHOST',     value: postgres.outputs.fqdn }
       { name: 'PGPORT',     value: '5432' }
       { name: 'PGUSER',     value: postgresAdminLogin }
       { name: 'PGDATABASE', value: postgresDatabaseName }
       { name: 'PGSSL',      value: 'require' }
       { name: 'NODE_ENV',   value: 'production' }
-    ]
-    keyVaultSecrets: [
+      { name: 'ALLOWED_ADMIN_EMAILS', value: allowedAdminEmails }
+      { name: 'AUTH_DEV_MODE', value: empty(entraClientId) ? 'true' : 'false' }
+      { name: 'AUTH_REDIRECT_URI', value: 'https://${containerAppName}.${containerAppsEnv.outputs.defaultDomain}/auth/callback' }
+    ], empty(entraClientId) ? [] : [
+      { name: 'AUTH_MICROSOFT_ENTRA_ID_ID',     value: entraClientId }
+      { name: 'AUTH_MICROSOFT_ENTRA_ID_TENANT_ID', value: entraTenantId }
+      { name: 'AUTH_MICROSOFT_ENTRA_ID_ISSUER', value: 'https://login.microsoftonline.com/${entraTenantId}/v2.0' }
+    ])
+    keyVaultSecrets: concat([
       { name: 'pg-password',     keyVaultUrl: '${kvRef.properties.vaultUri}secrets/postgres-admin-password' }
-      { name: 'admin-passphrase', keyVaultUrl: '${kvRef.properties.vaultUri}secrets/app-admin-passphrase' }
-    ]
-    secretEnvVars: [
-      { name: 'PGPASSWORD',       secretRef: 'pg-password' }
-      { name: 'ADMIN_PASSPHRASE', secretRef: 'admin-passphrase' }
-    ]
+      { name: 'session-secret',  keyVaultUrl: '${kvRef.properties.vaultUri}secrets/session-secret' }
+    ], empty(entraClientSecret) ? [] : [
+      { name: 'entra-client-secret', keyVaultUrl: '${kvRef.properties.vaultUri}secrets/entra-client-secret' }
+    ])
+    secretEnvVars: concat([
+      { name: 'PGPASSWORD',     secretRef: 'pg-password' }
+      { name: 'SESSION_SECRET', secretRef: 'session-secret' }
+    ], empty(entraClientSecret) ? [] : [
+      { name: 'AUTH_MICROSOFT_ENTRA_ID_SECRET', secretRef: 'entra-client-secret' }
+    ])
   }
   dependsOn: [
     pgPasswordSecret
-    adminPassphraseSecret
+    sessionSecretKv
+    entraClientSecretKv
   ]
 }
 
