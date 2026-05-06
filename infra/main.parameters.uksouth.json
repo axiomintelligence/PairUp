@@ -5,6 +5,9 @@
     "location": { "value": "uksouth" },
     "namePrefix": { "value": "pairup" },
     "regionTag": { "value": "uksouth" },
-    "postgresDatabaseName": { "value": "pairup" }
+    "postgresDatabaseName": { "value": "pairup" },
+    "entraClientId": { "value": "fbcf554a-acc8-4c1c-add9-fc7087aa9064" },
+    "entraTenantId": { "value": "12c068b0-44ec-490a-bb12-fe9512f110ad" },
+    "allowedAdminEmails": { "value": "jon.buckley@axiomintelligence.co.uk,testuser01@axiomintelligence.co.uk" }
   }
 }
