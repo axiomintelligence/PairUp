@@ -78,10 +78,43 @@ async function writeState(req, res, next) {
 app.put('/api/state', writeState);
 app.post('/api/state', writeState);
 
+// ── Events (tracking) ──────────────────────────────────────────────────────
+// Whitelist event types so client traffic can't bloat the table with noise.
+const ALLOWED_EVENT_TYPES = new Set([
+  'profile_created',
+  'profile_updated',
+  'profile_deleted',
+  'matches_suggested',
+  'connection_request',
+  'connection_accept',
+  'connection_dismiss',
+  'email_click',
+]);
+
+app.post('/api/events', async (req, res, next) => {
+  try {
+    const uid = ensureUserId(req, res);
+    const { type, payload } = req.body || {};
+    if (!type || typeof type !== 'string' || !ALLOWED_EVENT_TYPES.has(type)) {
+      return res.status(400).json({ error: 'invalid_type' });
+    }
+    const safePayload = (payload && typeof payload === 'object' && !Array.isArray(payload)) ? payload : {};
+    await pool.query(
+      'INSERT INTO events (event_type, user_id, payload) VALUES ($1, $2, $3::jsonb)',
+      [type, uid, JSON.stringify(safePayload)]
+    );
+    res.status(204).end();
+  } catch (e) { next(e); }
+});
+
 app.delete('/api/state', async (req, res, next) => {
   try {
     const uid = ensureUserId(req, res);
     await pool.query('DELETE FROM user_state WHERE user_id = $1', [uid]);
+    await pool.query(
+      "INSERT INTO events (event_type, user_id, payload) VALUES ('profile_deleted', $1, '{\"by\":\"self\"}'::jsonb)",
+      [uid]
+    );
     res.json({ ok: true });
   } catch (e) { next(e); }
 });
@@ -103,6 +136,120 @@ app.get('/api/admin/weights', async (req, res, next) => {
   try {
     const r = await pool.query("SELECT value FROM app_settings WHERE key = 'weights'");
     res.json(r.rows[0]?.value || { gradePenalty: 'heavy' });
+  } catch (e) { next(e); }
+});
+
+function requireAdmin(req, res) {
+  if (!ADMIN_PASSPHRASE) {
+    res.status(503).json({ error: 'admin disabled' });
+    return false;
+  }
+  if (!verifyAdminPassphrase(req)) {
+    res.status(403).json({ error: 'forbidden' });
+    return false;
+  }
+  return true;
+}
+
+app.get('/api/admin/stats', async (req, res, next) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    const userQ = pool.query(`
+      SELECT
+        COUNT(*)::int AS total,
+        COUNT(*) FILTER (WHERE state ? 'profile' AND state->'profile' IS NOT NULL AND state->'profile' <> 'null'::jsonb)::int AS with_profile,
+        COUNT(*) FILTER (WHERE NOT disabled)::int AS active_users,
+        COUNT(*) FILTER (WHERE disabled)::int AS disabled_users,
+        COUNT(*) FILTER (WHERE updated_at >= NOW() - INTERVAL '7 days')::int  AS used_7d,
+        COUNT(*) FILTER (WHERE updated_at >= NOW() - INTERVAL '30 days')::int AS used_30d
+      FROM user_state
+    `);
+    const evQ = pool.query(`
+      SELECT
+        COUNT(*) FILTER (WHERE event_type = 'profile_created')::int    AS profile_created_all,
+        COUNT(*) FILTER (WHERE event_type = 'profile_created' AND created_at >= NOW() - INTERVAL '7 days')::int  AS profile_created_7d,
+        COUNT(*) FILTER (WHERE event_type = 'profile_deleted')::int    AS profile_deleted_all,
+        COUNT(*) FILTER (WHERE event_type = 'profile_deleted' AND created_at >= NOW() - INTERVAL '7 days')::int  AS profile_deleted_7d,
+        COUNT(*) FILTER (WHERE event_type = 'matches_suggested')::int  AS matches_suggested_all,
+        COUNT(*) FILTER (WHERE event_type = 'matches_suggested' AND created_at >= NOW() - INTERVAL '7 days')::int AS matches_suggested_7d,
+        COUNT(*) FILTER (WHERE event_type = 'email_click')::int        AS email_clicks_all,
+        COUNT(*) FILTER (WHERE event_type = 'email_click' AND created_at >= NOW() - INTERVAL '7 days')::int      AS email_clicks_7d,
+        COUNT(*) FILTER (WHERE event_type = 'connection_request')::int AS connection_requests_all,
+        COUNT(*) FILTER (WHERE event_type = 'connection_request' AND created_at >= NOW() - INTERVAL '7 days')::int AS connection_requests_7d
+      FROM events
+    `);
+    const [u, e] = await Promise.all([userQ, evQ]);
+    res.json({ ...u.rows[0], ...e.rows[0] });
+  } catch (e) { next(e); }
+});
+
+app.get('/api/admin/users', async (req, res, next) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    const r = await pool.query(`
+      SELECT
+        user_id,
+        state->'profile'->>'name'        AS name,
+        state->'profile'->>'grade'       AS grade,
+        state->'profile'->>'location'    AS location,
+        state->'profile'->'directorates' AS directorates,
+        (state->'profile'->>'lastActive')::bigint AS last_active,
+        jsonb_array_length(COALESCE(state->'connections', '[]'::jsonb)) AS connections,
+        jsonb_array_length(COALESCE(state->'sentRequests', '[]'::jsonb)) AS sent,
+        jsonb_array_length(COALESCE(state->'receivedRequests', '[]'::jsonb)) AS received,
+        disabled,
+        disabled_at,
+        created_at,
+        updated_at
+      FROM user_state
+      ORDER BY updated_at DESC
+      LIMIT 200
+    `);
+    res.json(r.rows);
+  } catch (e) { next(e); }
+});
+
+app.patch('/api/admin/users/:id', async (req, res, next) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    const { disabled } = req.body || {};
+    if (typeof disabled !== 'boolean') {
+      return res.status(400).json({ error: 'disabled must be boolean' });
+    }
+    const r = await pool.query(
+      `UPDATE user_state
+         SET disabled = $2,
+             disabled_at = CASE WHEN $2 THEN NOW() ELSE NULL END
+       WHERE user_id = $1
+       RETURNING user_id, disabled, disabled_at`,
+      [req.params.id, disabled]
+    );
+    if (r.rows.length === 0) return res.status(404).json({ error: 'not_found' });
+    res.json(r.rows[0]);
+  } catch (e) { next(e); }
+});
+
+app.get('/api/admin/users/:id', async (req, res, next) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    const r = await pool.query(
+      'SELECT user_id, state, disabled, disabled_at, created_at, updated_at FROM user_state WHERE user_id = $1',
+      [req.params.id]
+    );
+    if (r.rows.length === 0) return res.status(404).json({ error: 'not_found' });
+    res.json(r.rows[0]);
+  } catch (e) { next(e); }
+});
+
+app.delete('/api/admin/users/:id', async (req, res, next) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    const r = await pool.query(
+      'DELETE FROM user_state WHERE user_id = $1 RETURNING user_id',
+      [req.params.id]
+    );
+    if (r.rows.length === 0) return res.status(404).json({ error: 'not_found' });
+    res.json({ ok: true, deletedId: r.rows[0].user_id });
   } catch (e) { next(e); }
 });
 
@@ -137,11 +284,16 @@ app.get('/healthz', async (_req, res) => {
 
 app.use(
   express.static(PUBLIC_DIR, {
+    etag: true,
+    lastModified: true,
     setHeaders: (res, filePath) => {
       if (filePath.endsWith('index.html')) {
         res.setHeader('Cache-Control', 'no-store');
-      } else if (/\.(js|css|svg|ico|png|webp|woff2?)$/.test(filePath)) {
-        res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
+      } else if (/\.(js|css)$/.test(filePath)) {
+        // App code/styles aren't content-hashed yet — let browsers revalidate.
+        res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+      } else if (/\.(svg|ico|png|webp|woff2?)$/.test(filePath)) {
+        res.setHeader('Cache-Control', 'public, max-age=86400');
       }
     },
   })
