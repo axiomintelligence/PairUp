@@ -9,19 +9,28 @@ param namePrefix string = 'pairup'
 @description('Region tag used for resource names')
 param regionTag string = 'uksouth'
 
-@description('Postgres database name (used in connection-string envs once a backend binds to the dev service)')
+@description('Postgres database name')
 param postgresDatabaseName string = 'pairup'
 
 @description('Container image to deploy. Leave default for first bootstrap; the app-deploy workflow updates this on each push.')
 param containerImage string = 'mcr.microsoft.com/k8se/quickstart:latest'
 
+@secure()
+@description('Postgres administrator password. Default is a deterministic uniqueString-based value; override at deploy time to rotate.')
+param postgresAdminPassword string = 'Pg!${take(uniqueString(resourceGroup().id, 'pgseed'), 8)}_${take(uniqueString(resourceGroup().id, 'pgseed2'), 12)}aZ1'
+
+@secure()
+@description('App admin passphrase (gates /api/admin/* routes). Default is deterministic; override at deploy time.')
+param adminPassphrase string = 'admin-${take(uniqueString(resourceGroup().id, 'adminseed'), 12)}'
+
 var logAnalyticsName = 'log-${namePrefix}-${regionTag}'
 var acrName = toLower('acr${namePrefix}${regionTag}')
 var managedIdentityName = 'id-${namePrefix}-web'
 var keyVaultName = 'kv-${namePrefix}-${regionTag}'
-var postgresServiceName = '${namePrefix}-pg'
+var postgresServerName = 'psql-${namePrefix}-${regionTag}'
 var containerAppsEnvName = 'cae-${namePrefix}-${regionTag}'
 var containerAppName = 'ca-${namePrefix}-web'
+var postgresAdminLogin = 'pairupadmin'
 
 module logAnalytics 'modules/log-analytics.bicep' = {
   name: 'logAnalytics'
@@ -50,8 +59,6 @@ module acr 'modules/acr.bicep' = {
   }
 }
 
-// Key Vault is kept for future application secrets even though the Postgres
-// dev-service manages its own credentials and exposes them via service binding.
 module keyVault 'modules/keyvault.bicep' = {
   name: 'keyVault'
   params: {
@@ -60,6 +67,30 @@ module keyVault 'modules/keyvault.bicep' = {
     secretsUserPrincipalIds: [
       managedIdentity.outputs.principalId
     ]
+  }
+}
+
+// Look up the existing vault as a top-level resource so we can attach secrets to it.
+resource kvRef 'Microsoft.KeyVault/vaults@2024-04-01-preview' existing = {
+  name: keyVaultName
+  dependsOn: [ keyVault ]
+}
+
+resource pgPasswordSecret 'Microsoft.KeyVault/vaults/secrets@2024-04-01-preview' = {
+  parent: kvRef
+  name: 'postgres-admin-password'
+  properties: {
+    value: postgresAdminPassword
+    contentType: 'text/plain'
+  }
+}
+
+resource adminPassphraseSecret 'Microsoft.KeyVault/vaults/secrets@2024-04-01-preview' = {
+  parent: kvRef
+  name: 'app-admin-passphrase'
+  properties: {
+    value: adminPassphrase
+    contentType: 'text/plain'
   }
 }
 
@@ -72,12 +103,14 @@ module containerAppsEnv 'modules/container-apps-env.bicep' = {
   }
 }
 
-module postgres 'modules/postgres-dev-service.bicep' = {
-  name: 'postgresDevService'
+module postgres 'modules/postgres-flexible-server.bicep' = {
+  name: 'postgresFlexibleServer'
   params: {
-    environmentId: containerAppsEnv.outputs.id
+    name: postgresServerName
+    databaseName: postgresDatabaseName
     location: location
-    name: postgresServiceName
+    administratorLogin: postgresAdminLogin
+    administratorPassword: postgresAdminPassword
   }
 }
 
@@ -90,13 +123,29 @@ module containerApp 'modules/container-app.bicep' = {
     managedIdentityId: managedIdentity.outputs.id
     acrLoginServer: acr.outputs.loginServer
     image: containerImage
-    serviceBinds: [
-      {
-        serviceId: postgres.outputs.id
-        name: 'postgres'
-      }
+    targetPort: 8080
+    probePath: '/healthz'
+    envVars: [
+      { name: 'PGHOST',     value: postgres.outputs.fqdn }
+      { name: 'PGPORT',     value: '5432' }
+      { name: 'PGUSER',     value: postgresAdminLogin }
+      { name: 'PGDATABASE', value: postgresDatabaseName }
+      { name: 'PGSSL',      value: 'require' }
+      { name: 'NODE_ENV',   value: 'production' }
+    ]
+    keyVaultSecrets: [
+      { name: 'pg-password',     keyVaultUrl: '${kvRef.properties.vaultUri}secrets/postgres-admin-password' }
+      { name: 'admin-passphrase', keyVaultUrl: '${kvRef.properties.vaultUri}secrets/app-admin-passphrase' }
+    ]
+    secretEnvVars: [
+      { name: 'PGPASSWORD',       secretRef: 'pg-password' }
+      { name: 'ADMIN_PASSPHRASE', secretRef: 'admin-passphrase' }
     ]
   }
+  dependsOn: [
+    pgPasswordSecret
+    adminPassphraseSecret
+  ]
 }
 
 output resourceGroupName string = resourceGroup().name
@@ -104,7 +153,8 @@ output containerAppName string = containerApp.outputs.name
 output containerAppFqdn string = containerApp.outputs.fqdn
 output acrName string = acr.outputs.name
 output acrLoginServer string = acr.outputs.loginServer
-output postgresServiceName string = postgres.outputs.name
+output postgresServerName string = postgres.outputs.name
+output postgresFqdn string = postgres.outputs.fqdn
 output postgresDatabaseName string = postgresDatabaseName
 output keyVaultName string = keyVault.outputs.name
 output managedIdentityClientId string = managedIdentity.outputs.clientId

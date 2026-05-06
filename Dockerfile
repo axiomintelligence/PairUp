@@ -1,10 +1,19 @@
-FROM nginx:1.27-alpine
+FROM node:20-alpine
 
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-COPY index.html app.js data.js styles.css /usr/share/nginx/html/
-COPY favicon.ico favicon.svg favicon-32.png /usr/share/nginx/html/
+WORKDIR /app
 
-EXPOSE 80
+COPY server/package.json server/package-lock.json* ./server/
+RUN cd server && npm install --omit=dev
 
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget -q -O - http://localhost/ >/dev/null || exit 1
+COPY server/ ./server/
+COPY index.html app.js data.js styles.css ./public/
+COPY favicon.ico favicon.svg favicon-32.png ./public/
+
+ENV NODE_ENV=production
+ENV PORT=8080
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD wget -q -O - http://localhost:8080/healthz >/dev/null || exit 1
+
+CMD ["node", "server/server.js"]
