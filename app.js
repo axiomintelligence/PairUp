@@ -17,6 +17,7 @@ function defaultState() {
     hiddenSuggested: [],   // ids currently hidden from suggested matches (revealed by refresh)
     activeOverrides: {},   // id -> timestamp, overrides the dummy's baked-in lastActive
     searchPrefs: null,     // hydrated from defaults / server on bootstrap
+    activelyLooking: true,
     _bootstrapped: false,
     _hiddenBootstrapped: false,
   };
@@ -838,6 +839,7 @@ function openScoreModal(id) {
 function switchTab(name) {
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
   document.querySelectorAll('.tab-content').forEach(s => s.classList.toggle('active', s.id === 'tab-' + name));
+  window.scrollTo(0, 0);
   if (name === 'matches') renderMatches();
   if (name === 'connections') renderConnections();
 }
@@ -1023,6 +1025,10 @@ function setupDayMatrix() {
 // ─── Save / delete profile ────────────────────────────────────────────────────
 
 document.getElementById('saveProfile').addEventListener('click', () => {
+  if (state.activelyLooking === false) {
+    showSaveStatus('Toggle "I’m actively looking" back on to save your profile.', 'error');
+    return;
+  }
   const name = document.getElementById('userName').value.trim();
   if (!name) { showSaveStatus('Please enter your name.', 'error'); return; }
   const grade = getSelectedSingle('gradeChips');
@@ -1081,16 +1087,56 @@ function showSaveStatus(msg, type) {
   if (type === 'ok') setTimeout(() => el.style.display = 'none', 3000);
 }
 
+// ─── Actively-looking toggle ─────────────────────────────────────────────────
+// When off, the profile form is greyed out and disabled, the matches tab shows
+// an inactive empty state, and the save flow is blocked. State persists via
+// the normal saveState() pipeline.
+
+function applyActiveLookingState() {
+  const active = state.activelyLooking !== false;
+  document.body.classList.toggle('profile-form-disabled', !active);
+  const tab = document.getElementById('tab-profile');
+  if (tab) {
+    tab.querySelectorAll('input, textarea, select, button').forEach(el => {
+      if (el.closest('.active-toggle-row')) return;
+      el.disabled = !active;
+    });
+  }
+}
+
+const _activeToggleEl = document.getElementById('activeToggle');
+if (_activeToggleEl) {
+  _activeToggleEl.addEventListener('change', e => {
+    state.activelyLooking = e.target.checked;
+    saveState();
+    applyActiveLookingState();
+    if (document.getElementById('tab-matches').classList.contains('active')) renderMatches();
+  });
+}
+
 // ─── Render matches ───────────────────────────────────────────────────────────
 
 function renderMatches() {
+  const noProfileEl = document.getElementById('matchesNoProfile');
+  const inactiveEl = document.getElementById('matchesInactive');
+  const contentEl = document.getElementById('matchesContent');
+
   if (!state.profile) {
-    document.getElementById('matchesNoProfile').style.display = 'block';
-    document.getElementById('matchesContent').style.display = 'none';
+    noProfileEl.style.display = 'block';
+    if (inactiveEl) inactiveEl.style.display = 'none';
+    contentEl.style.display = 'none';
     return;
   }
-  document.getElementById('matchesNoProfile').style.display = 'none';
-  document.getElementById('matchesContent').style.display = 'block';
+  if (state.activelyLooking === false) {
+    noProfileEl.style.display = 'none';
+    if (inactiveEl) inactiveEl.style.display = 'block';
+    contentEl.style.display = 'none';
+    updateBadges();
+    return;
+  }
+  noProfileEl.style.display = 'none';
+  if (inactiveEl) inactiveEl.style.display = 'none';
+  contentEl.style.display = 'block';
 
   // Inbound requests
   const inboundIds = state.receivedRequests.filter(id => !state.connections.find(c => c.id === id));
@@ -1804,6 +1850,9 @@ async function bootstrapState() {
   }
   maybeBootstrapHiddenSuggested();
   rehydrateTimers();
+  const activeToggle = document.getElementById('activeToggle');
+  if (activeToggle) activeToggle.checked = state.activelyLooking !== false;
+  applyActiveLookingState();
   updateBadges();
   updateCompleteness();
   renderConnectionBanner();
