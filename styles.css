@@ -138,6 +138,17 @@ body::before {
   letter-spacing: -0.025em;
   display: inline-flex;
   align-items: baseline;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font-family: inherit;
+  cursor: pointer;
+  border-radius: var(--r-sm);
+}
+.brand-logo:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 4px;
 }
 .brand-fcdo { color: var(--text-primary); font-weight: 700; }
 .brand-pair { color: var(--brand); font-weight: 700; margin-left: 6px; }
