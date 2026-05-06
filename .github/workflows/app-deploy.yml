@@ -9,8 +9,8 @@ on:
       - 'data.js'
       - 'styles.css'
       - 'favicon.*'
+      - 'server/**'
       - 'Dockerfile'
-      - 'nginx.conf'
       - '.dockerignore'
       - '.github/workflows/app-deploy.yml'
   workflow_dispatch: {}

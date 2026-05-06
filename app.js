@@ -1,13 +1,8 @@
 // ─── State ───────────────────────────────────────────────────────────────────
-
-const STATE_KEY = 'pairup_v2';
-
-function loadState() {
-  try {
-    const raw = localStorage.getItem(STATE_KEY);
-    return raw ? JSON.parse(raw) : defaultState();
-  } catch (e) { return defaultState(); }
-}
+// State persists server-side via /api/state, keyed by an HTTP-only cookie UUID.
+// Local in-memory `state` is the source of truth during a session; saveState()
+// pushes a debounced PUT. On boot, bootstrapState() fetches the server copy
+// and merges it in before the initial render.
 
 function defaultState() {
   return {
@@ -21,35 +16,51 @@ function defaultState() {
     pendingTimers: {},     // id -> scheduledAt timestamp (persisted so reload survives)
     hiddenSuggested: [],   // ids currently hidden from suggested matches (revealed by refresh)
     activeOverrides: {},   // id -> timestamp, overrides the dummy's baked-in lastActive
+    searchPrefs: null,     // hydrated from defaults / server on bootstrap
     _bootstrapped: false,
     _hiddenBootstrapped: false,
   };
 }
 
-function saveState() {
-  localStorage.setItem(STATE_KEY, JSON.stringify(state));
+async function fetchState() {
+  const r = await fetch('/api/state', { credentials: 'same-origin' });
+  if (!r.ok) throw new Error(`GET /api/state ${r.status}`);
+  return (await r.json()).state || {};
 }
 
-let state = loadState();
+let _bootHydrated = false;
+let _saveTimer = null;
+function saveState() {
+  if (!_bootHydrated) return;            // ignore writes before initial fetch lands
+  if (_saveTimer) clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(() => { _saveTimer = null; flushState(); }, 200);
+}
+function flushState() {
+  state.searchPrefs = searchPrefs;
+  const payload = { ...state };
+  return fetch('/api/state', {
+    method: 'PUT',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }).catch((e) => console.error('[saveState]', e));
+}
+window.addEventListener('pagehide', () => {
+  // Best-effort flush on tab close (sendBeacon survives unload).
+  if (!_bootHydrated || !_saveTimer) return;
+  clearTimeout(_saveTimer);
+  state.searchPrefs = searchPrefs;
+  try {
+    const blob = new Blob([JSON.stringify(state)], { type: 'application/json' });
+    navigator.sendBeacon('/api/state', blob);
+  } catch (e) { /* ignore */ }
+});
+
+let state = defaultState();
 
 const DEFAULT_VISIBILITY = () => ({
   grade: 'must', directorates: 'must', location: 'open', days: 'open',
 });
-
-// Migrate any pre-existing profile to the new schema so old localStorage doesn't crash.
-if (state.profile) {
-  const p = state.profile;
-  if (Array.isArray(p.days)) {
-    const arr = p.days;
-    p.days = { Mon: 'non', Tue: 'non', Wed: 'non', Thu: 'non', Fri: 'non' };
-    arr.forEach(d => { if (p.days[d] !== undefined) p.days[d] = 'full'; });
-  }
-  if (p.roles) delete p.roles;
-  if (!p.lastActive) p.lastActive = Date.now();
-  if (!p.visibility) p.visibility = DEFAULT_VISIBILITY();
-  ['availability', 'fte', 'daysNegotiable', 'skills', 'workingPatternNotes', 'otherInfo']
-    .forEach(k => { if (p[k] === undefined) p[k] = ''; });
-}
 
 const DAYS_OF_WEEK = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 const EMPTY_DAYS = () => ({ Mon: 'non', Tue: 'non', Wed: 'non', Thu: 'non', Fri: 'non' });
@@ -135,27 +146,42 @@ function rehydrateTimers() {
 
 // ─── Admin weights (grade penalty mode only) ─────────────────────────────────
 
-const WEIGHTS_KEY = 'pairup_weights_v1';
 const DEFAULT_WEIGHTS = {
   gradePenalty: 'heavy',  // 'hard'|'heavy'|'light'|'none' — for relaxed (Preferred) grade search
 };
 
-function loadWeights() {
+async function fetchWeights() {
   try {
-    const raw = localStorage.getItem(WEIGHTS_KEY);
-    return raw ? { ...DEFAULT_WEIGHTS, ...JSON.parse(raw) } : { ...DEFAULT_WEIGHTS };
-  } catch (e) { return { ...DEFAULT_WEIGHTS }; }
+    const r = await fetch('/api/admin/weights', { credentials: 'same-origin' });
+    if (!r.ok) return { ...DEFAULT_WEIGHTS };
+    return { ...DEFAULT_WEIGHTS, ...(await r.json()) };
+  } catch (e) {
+    return { ...DEFAULT_WEIGHTS };
+  }
 }
 
-function saveWeights(w) {
-  localStorage.setItem(WEIGHTS_KEY, JSON.stringify(w));
+async function saveWeights(w) {
+  // Admin passphrase is captured by the unlock dialog and stashed in sessionStorage
+  // for the duration of the session.
+  const pass = sessionStorage.getItem('pairup_admin_pass') || '';
+  try {
+    const r = await fetch('/api/admin/weights', {
+      method: 'PUT',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Passphrase': pass },
+      body: JSON.stringify(w),
+    });
+    if (!r.ok) console.error('[saveWeights] HTTP', r.status);
+  } catch (e) {
+    console.error('[saveWeights]', e);
+  }
 }
 
-let W = loadWeights();
+let W = { ...DEFAULT_WEIGHTS };
 
 // ─── Search preferences (Change 19) ──────────────────────────────────────────
+// Folded into server-side state.searchPrefs; persisted via saveState().
 
-const SEARCH_PREFS_KEY = 'pairup_searchPrefs';
 const DEFAULT_SEARCH_PREFS = {
   grade: 'definite',
   directorates: 'definite',
@@ -163,18 +189,12 @@ const DEFAULT_SEARCH_PREFS = {
   days: 'preferred',
 };
 
-function loadSearchPrefs() {
-  try {
-    const raw = localStorage.getItem(SEARCH_PREFS_KEY);
-    return raw ? { ...DEFAULT_SEARCH_PREFS, ...JSON.parse(raw) } : { ...DEFAULT_SEARCH_PREFS };
-  } catch (e) { return { ...DEFAULT_SEARCH_PREFS }; }
-}
-
 function saveSearchPrefs() {
-  localStorage.setItem(SEARCH_PREFS_KEY, JSON.stringify(searchPrefs));
+  state.searchPrefs = searchPrefs;
+  saveState();
 }
 
-let searchPrefs = loadSearchPrefs();
+let searchPrefs = { ...DEFAULT_SEARCH_PREFS };
 
 // Ensures a candidate's visibility field is present and filled.
 function visibilityOf(candidate) {
@@ -370,15 +390,15 @@ function scoreClass(pct) {
 }
 
 function accentColor(pct) {
-  if (pct >= 65) return '#639922';
-  if (pct >= 40) return '#EF9F27';
-  return '#E24B4A';
+  if (pct >= 65) return '#15803d';
+  if (pct >= 40) return '#b45309';
+  return '#b91c1c';
 }
 
 function matchTextColor(pct) {
-  if (pct >= 65) return '#27500A';
-  if (pct >= 40) return '#633806';
-  return '#A32D2D';
+  if (pct >= 65) return '#15803d';
+  if (pct >= 40) return '#b45309';
+  return '#b91c1c';
 }
 
 function styleLabel(s) {
@@ -517,8 +537,8 @@ function buildCard(matchObj, context) {
   const pct = matchObj.score !== undefined ? scoreToPercent(matchObj.score) : null;
   const locDisplay = locationShort(p.location, p.overseas);
 
-  const accent = pct !== null ? accentColor(pct) : '#ccc';
-  const matchColor = pct !== null ? matchTextColor(pct) : '#888';
+  const accent = pct !== null ? accentColor(pct) : '#cbd5e1';
+  const matchColor = pct !== null ? matchTextColor(pct) : '#94a3b8';
 
   // Name display: initials if the candidate is visible only because the searcher
   // relaxed their own criteria (Change 11). Flag set by getMatches in relaxed mode.
@@ -602,9 +622,9 @@ function buildCard(matchObj, context) {
     connFooter = `<div class="cconn-footer"><span>${dateStr}</span><span class="cconn-dir">${dirText}</span></div>`;
   }
 
-  const btnBlue = `background:#185FA5;color:#fff;`;
-  const btnGhost = `background:transparent;color:#999;border:0.5px solid #ccc;`;
-  const btnBase = `all:unset;display:block;width:100%;box-sizing:border-box;text-align:center;font-size:12px;font-weight:500;padding:5px 0;border-radius:7px;cursor:pointer;`;
+  const btnBlue = `background:#1e40af;color:#fff;`;
+  const btnGhost = `background:transparent;color:#64748b;border:1px solid #e2e8f0;`;
+  const btnBase = `all:unset;display:block;width:100%;box-sizing:border-box;text-align:center;font-size:12px;font-weight:500;padding:6px 0;border-radius:8px;cursor:pointer;letter-spacing:-0.005em;`;
 
   let rightCol = '';
   if (context === 'inbound') {
@@ -781,7 +801,7 @@ function openScoreModal(id) {
       <span class="score-pill ${sClass} modal-score-pct">${pct}% match</span>
     </div>
     <div class="score-breakdown">${rows}</div>
-    <div style="margin-top:12px;font-size:11px;color:#bbb;line-height:1.6;">
+    <div style="margin-top:12px;font-size:11.5px;color:#94a3b8;line-height:1.6;">
       Grade and directorate are already matched (hard gates). This score ranks remaining profiles by day complementarity, recency, overlap and location.
     </div>
   `);
@@ -842,7 +862,9 @@ function updateCompleteness() {
   document.getElementById('complFill').style.width = pct + '%';
   const labels = ['Profile incomplete', 'Getting started', 'Keep going…', 'Half way there', 'Almost there', 'Profile complete'];
   document.getElementById('complLabel').textContent = labels[filled] || 'Profile complete';
-  document.getElementById('complFill').style.background = pct === 100 ? '#27500A' : '#185FA5';
+  document.getElementById('complFill').style.background = pct === 100
+    ? 'linear-gradient(90deg, #15803d, #16a34a)'
+    : 'linear-gradient(90deg, #1e40af, #3b82f6)';
 }
 
 function loadProfileIntoForm() {
@@ -1013,9 +1035,11 @@ document.getElementById('saveProfile').addEventListener('click', () => {
   setTimeout(() => switchTab('matches'), 1200);
 });
 
-document.getElementById('deleteProfile').addEventListener('click', () => {
+document.getElementById('deleteProfile').addEventListener('click', async () => {
   if (!confirm('Delete your profile? This will remove all your data including connections.')) return;
-  localStorage.removeItem(STATE_KEY);
+  try {
+    await fetch('/api/state', { method: 'DELETE', credentials: 'same-origin' });
+  } catch (e) { console.error('[delete]', e); }
   location.reload();
 });
 
@@ -1230,7 +1254,7 @@ function renderConnectionBanner() {
     banner.style.display = 'flex';
     banner.innerHTML = `<span style="font-size:16px;flex-shrink:0;">🎉</span>
       <span>${state.newConnBanner}</span>
-      <button onclick="clearBanner()" style="margin-left:auto;background:none;border:none;cursor:pointer;color:#27500A;font-size:18px;line-height:1;padding:0 4px;">×</button>`;
+      <button onclick="clearBanner()" style="margin-left:auto;background:none;border:none;cursor:pointer;color:#15803d;font-size:18px;line-height:1;padding:0 4px;">×</button>`;
   } else {
     banner.style.display = 'none';
   }
@@ -1266,8 +1290,8 @@ function updateBadges() {
 function colourFilterChips() {
   if (!state.profile) return;
   const p = state.profile;
-  const GREEN = '#E9FAE6';
-  const GREY  = '#EDEDED';
+  const GREEN = '#dcfce7';
+  const GREY  = '#f1f5f9';
 
   // Days — green if user works that day (any value other than 'non')
   document.querySelectorAll('#filterDays .filter-chip').forEach(chip => {
@@ -1690,15 +1714,58 @@ document.querySelectorAll('[data-pref]').forEach(btn => {
 
 syncSearchPrefButtons();
 
-if (state.profile) {
-  loadProfileIntoForm();
-  maybeBootstrapInbound();
-}
-
+// First-paint render with empty defaults; bootstrapState() rehydrates from
+// /api/state shortly after and re-renders.
 rehydrateTimers();
 updateBadges();
 updateCompleteness();
 renderConnectionBanner();
+
+async function bootstrapState() {
+  let serverState = {};
+  try {
+    serverState = await fetchState();
+  } catch (e) {
+    console.error('[bootstrapState] fetch failed:', e);
+  }
+  const merged = { ...defaultState(), ...serverState };
+  merged.searchPrefs = { ...DEFAULT_SEARCH_PREFS, ...(serverState.searchPrefs || {}) };
+  // Migrate any pre-existing profile shape (legacy from old localStorage).
+  if (merged.profile) {
+    const p = merged.profile;
+    if (Array.isArray(p.days)) {
+      const arr = p.days;
+      p.days = { Mon: 'non', Tue: 'non', Wed: 'non', Thu: 'non', Fri: 'non' };
+      arr.forEach((d) => { if (p.days[d] !== undefined) p.days[d] = 'full'; });
+    }
+    if (p.roles) delete p.roles;
+    if (!p.lastActive) p.lastActive = Date.now();
+    if (!p.visibility) p.visibility = DEFAULT_VISIBILITY();
+    ['availability', 'fte', 'daysNegotiable', 'skills', 'workingPatternNotes', 'otherInfo']
+      .forEach((k) => { if (p[k] === undefined) p[k] = ''; });
+  }
+  Object.keys(state).forEach((k) => delete state[k]);
+  Object.assign(state, merged);
+  searchPrefs = state.searchPrefs;
+  _bootHydrated = true;
+
+  W = await fetchWeights();
+
+  syncSearchPrefButtons();
+  if (state.profile) {
+    loadProfileIntoForm();
+    maybeBootstrapInbound();
+  }
+  maybeBootstrapHiddenSuggested();
+  rehydrateTimers();
+  updateBadges();
+  updateCompleteness();
+  renderConnectionBanner();
+  const active = document.querySelector('.tab-content.active');
+  if (active && active.id === 'tab-matches') renderMatches();
+  if (active && active.id === 'tab-connections') renderConnections();
+}
+bootstrapState();
 
 // ─── Privacy modal ────────────────────────────────────────────────────────────
 
@@ -1725,9 +1792,7 @@ function closeAboutIfBg(e) { if (e.target === document.getElementById('aboutOver
 
 // ─── Admin modal ──────────────────────────────────────────────────────────────
 
-const ADMIN_PASS = 'pairup-admin';
-
-function isAdminUnlocked() { return sessionStorage.getItem('pairup_admin') === '1'; }
+function isAdminUnlocked() { return !!sessionStorage.getItem('pairup_admin_pass'); }
 
 function checkAndShowAdmin() {
   if (isAdminUnlocked()) {
@@ -1742,10 +1807,23 @@ function checkAndShowAdmin() {
 
 document.getElementById('adminBtn').addEventListener('click', checkAndShowAdmin);
 
-document.getElementById('adminPassSubmit').addEventListener('click', () => {
+async function tryAdminUnlock(pass) {
+  try {
+    const r = await fetch('/api/admin/check', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'X-Admin-Passphrase': pass },
+    });
+    return r.ok;
+  } catch (e) { return false; }
+}
+
+document.getElementById('adminPassSubmit').addEventListener('click', async () => {
   const val = document.getElementById('adminPassInput').value.trim();
-  if (val === ADMIN_PASS) {
-    sessionStorage.setItem('pairup_admin', '1');
+  if (!val) return;
+  const ok = await tryAdminUnlock(val);
+  if (ok) {
+    sessionStorage.setItem('pairup_admin_pass', val);
     closeUnlock();
     openAdminPanel();
   } else {
@@ -1795,7 +1873,7 @@ if (resetBtn) resetBtn.addEventListener('click', () => {
 
 const lockBtn = document.getElementById('adminLockBtn');
 if (lockBtn) lockBtn.addEventListener('click', () => {
-  sessionStorage.removeItem('pairup_admin');
+  sessionStorage.removeItem('pairup_admin_pass');
   closeAdmin();
 });
 

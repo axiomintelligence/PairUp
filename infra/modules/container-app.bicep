@@ -11,8 +11,24 @@ param minReplicas int = 0
 param maxReplicas int = 3
 param targetPort int = 80
 
+@description('Liveness/readiness probe path served by the container.')
+param probePath string = '/'
+
 @description('Container Apps dev-service IDs to bind into the app (e.g. Postgres add-on). Each entry: { serviceId: <id>, name: <bindName> }.')
 param serviceBinds array = []
+
+@description('Plain-value env vars on the container. Each: { name, value }.')
+param envVars array = []
+
+@description('Key Vault-backed app secrets. Each: { name, keyVaultUrl } — managed identity reads them.')
+param keyVaultSecrets array = []
+
+@description('Env vars sourced from app secrets. Each: { name, secretRef } — secretRef must match a `keyVaultSecrets[].name`.')
+param secretEnvVars array = []
+
+var plainEnv = [for e in envVars: { name: e.name, value: e.value }]
+var secretEnv = [for s in secretEnvVars: { name: s.name, secretRef: s.secretRef }]
+var allEnv = concat(plainEnv, secretEnv)
 
 resource app 'Microsoft.App/containerApps@2024-10-02-preview' = {
   name: name
@@ -46,6 +62,11 @@ resource app 'Microsoft.App/containerApps@2024-10-02-preview' = {
           identity: managedIdentityId
         }
       ]
+      secrets: [for s in keyVaultSecrets: {
+        name: s.name
+        keyVaultUrl: s.keyVaultUrl
+        identity: managedIdentityId
+      }]
     }
     template: {
       serviceBinds: [for b in serviceBinds: {
@@ -60,11 +81,12 @@ resource app 'Microsoft.App/containerApps@2024-10-02-preview' = {
             cpu: json(cpu)
             memory: memory
           }
+          env: allEnv
           probes: [
             {
               type: 'Liveness'
               httpGet: {
-                path: '/'
+                path: probePath
                 port: targetPort
               }
               periodSeconds: 30
@@ -74,7 +96,7 @@ resource app 'Microsoft.App/containerApps@2024-10-02-preview' = {
             {
               type: 'Readiness'
               httpGet: {
-                path: '/'
+                path: probePath
                 port: targetPort
               }
               periodSeconds: 10
