@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap">
-  <link rel="stylesheet" href="styles.css?v=2">
+  <link rel="stylesheet" href="styles.css?v=5">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
@@ -615,11 +615,26 @@
       </div>
 
       <div class="admin-tab-pane active" data-admin-pane="overview">
-        <div class="admin-stat-grid" id="adminStatGrid">
-          <div class="admin-stat" data-key="total"><div class="admin-stat-num" data-stat="total">—</div><div class="admin-stat-label">Total users</div></div>
-          <div class="admin-stat" data-key="with_profile"><div class="admin-stat-num" data-stat="with_profile">—</div><div class="admin-stat-label">With profile</div></div>
-          <div class="admin-stat" data-key="active_7d"><div class="admin-stat-num" data-stat="active_7d">—</div><div class="admin-stat-label">Active 7d</div></div>
-          <div class="admin-stat" data-key="active_30d"><div class="admin-stat-num" data-stat="active_30d">—</div><div class="admin-stat-label">Active 30d</div></div>
+        <div class="admin-stat-section-label">Users</div>
+        <div class="admin-stat-grid">
+          <div class="admin-stat"><div class="admin-stat-num" data-stat="total">—</div><div class="admin-stat-label">Registered</div></div>
+          <div class="admin-stat"><div class="admin-stat-num" data-stat="with_profile">—</div><div class="admin-stat-label">With profile</div></div>
+          <div class="admin-stat"><div class="admin-stat-num" data-stat="active_users">—</div><div class="admin-stat-label">Active</div></div>
+          <div class="admin-stat"><div class="admin-stat-num" data-stat="disabled_users">—</div><div class="admin-stat-label">Disabled</div></div>
+        </div>
+        <div class="admin-stat-section-label">Usage</div>
+        <div class="admin-stat-grid">
+          <div class="admin-stat"><div class="admin-stat-num" data-stat="used_7d">—</div><div class="admin-stat-label">Used 7d</div></div>
+          <div class="admin-stat"><div class="admin-stat-num" data-stat="used_30d">—</div><div class="admin-stat-label">Used 30d</div></div>
+          <div class="admin-stat"><div class="admin-stat-num" data-stat="matches_suggested_7d">—</div><div class="admin-stat-label">Matches sugg. 7d</div></div>
+          <div class="admin-stat"><div class="admin-stat-num" data-stat="matches_suggested_all">—</div><div class="admin-stat-label">Matches sugg. all</div></div>
+        </div>
+        <div class="admin-stat-section-label">Actions</div>
+        <div class="admin-stat-grid">
+          <div class="admin-stat"><div class="admin-stat-num" data-stat="profile_created_all">—</div><div class="admin-stat-label">Profiles created</div></div>
+          <div class="admin-stat"><div class="admin-stat-num" data-stat="profile_deleted_all">—</div><div class="admin-stat-label">Profiles deleted</div></div>
+          <div class="admin-stat"><div class="admin-stat-num" data-stat="connection_requests_all">—</div><div class="admin-stat-label">Connection reqs</div></div>
+          <div class="admin-stat"><div class="admin-stat-num" data-stat="email_clicks_all">—</div><div class="admin-stat-label">Email clicks</div></div>
         </div>
         <div class="admin-overview-note" id="adminOverviewNote"></div>
       </div>
@@ -681,7 +696,7 @@
   <!-- Version -->
   <div class="app-version">v1.12</div>
 
-  <script src="data.js?v=2"></script>
-  <script src="app.js?v=2"></script>
+  <script src="data.js?v=5"></script>
+  <script src="app.js?v=5"></script>
 </body>
 </html>

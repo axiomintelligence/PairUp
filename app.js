@@ -28,8 +28,28 @@ async function fetchState() {
   return (await r.json()).state || {};
 }
 
+// Fire-and-forget tracking. Server-side allowlist gates the type set.
+function track(type, payload) {
+  if (!_bootHydrated) return;
+  try {
+    const body = JSON.stringify({ type, payload: payload || {} });
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon('/api/events', new Blob([body], { type: 'application/json' }));
+      return;
+    }
+    fetch('/api/events', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body,
+      keepalive: true,
+    }).catch(() => {});
+  } catch (e) { /* ignore */ }
+}
+
 let _bootHydrated = false;
 let _saveTimer = null;
+let _lastMatchesTrackTs = 0;
 function saveState() {
   if (!_bootHydrated) return;            // ignore writes before initial fetch lands
   if (_saveTimer) clearTimeout(_saveTimer);
@@ -639,8 +659,14 @@ function buildCard(matchObj, context) {
     rightCol = `
       <button type="button" style="${btnBase}${btnGhost}" data-action="withdraw" data-id="${p.id}">Withdraw</button>`;
   } else if (context === 'connected') {
+    const subj = encodeURIComponent(`Job share — ${p.name}`);
+    const body = encodeURIComponent(
+      `Hi ${(p.name || '').split(' ').pop() || 'there'},\n\n` +
+      `I'm reaching out via FCDO PairUp. We were matched as potential job-share partners and I'd love to find time to chat.\n\n` +
+      `Best,\n${(state.profile && state.profile.name) || ''}`
+    );
     rightCol = `
-      <a style="${btnBase}${btnBlue}text-decoration:none;display:flex;align-items:center;justify-content:center;gap:5px;" href="mailto:${p.name}">
+      <a style="${btnBase}${btnBlue}text-decoration:none;display:flex;align-items:center;justify-content:center;gap:5px;" href="mailto:?subject=${subj}&body=${body}" data-action="email" data-id="${p.id}">
         <svg width="11" height="11" viewBox="0 0 13 13" fill="none"><rect x="1" y="2.5" width="11" height="8" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M1 4l5.5 3.5L12 4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
         Email
       </a>
@@ -1016,6 +1042,7 @@ document.getElementById('saveProfile').addEventListener('click', () => {
   const otherInfo = document.getElementById('userOtherInfo').value.trim();
   const daysNegotiable = document.querySelector('#negotiableChips .selected')?.dataset.val || '';
 
+  const isNewProfile = !state.profile;
   state.profile = {
     name, grade, directorates,
     days: { ...dayState },
@@ -1028,6 +1055,9 @@ document.getElementById('saveProfile').addEventListener('click', () => {
   maybeBootstrapInbound();
   maybeBootstrapHiddenSuggested();
   saveState();
+  track(isNewProfile ? 'profile_created' : 'profile_updated', {
+    grade, location, directorateCount: directorates.length,
+  });
   updateBadges();
   colourFilterChips();
   document.getElementById('deleteProfile').style.display = 'inline-block';
@@ -1104,6 +1134,17 @@ function renderMatches() {
     cards.appendChild(buildCard(m, ctx));
   });
 
+  // Track each time a fresh batch of suggestions is rendered to a user, but
+  // throttle to once per 30s so re-renders don't flood events.
+  if (visible.length > 0 && (!_lastMatchesTrackTs || Date.now() - _lastMatchesTrackTs > 30_000)) {
+    _lastMatchesTrackTs = Date.now();
+    track('matches_suggested', {
+      visible: visible.length,
+      inbound: inboundIds.length,
+      total: allMatches.length,
+    });
+  }
+
   const hasDismissed = allMatches.some(m =>
     state.dismissed.includes(m.profile.id) && !state.connections.find(c => c.id === m.profile.id)
   );
@@ -1121,6 +1162,7 @@ function sendRequest(id) {
   if (state.sentRequests.includes(id)) return;
   state.sentRequests.push(id);
   saveState();
+  track('connection_request', { targetId: id });
   renderMatches();
   if (Math.random() > 0.4) schedulePendingAccept(id);
 }
@@ -1137,6 +1179,7 @@ function acceptRequest(id) {
   state.receivedRequests = state.receivedRequests.filter(x => x !== id);
   state.connections.push({ id, dir: 'received', ts: Date.now() });
   saveState();
+  track('connection_accept', { targetId: id });
   updateBadges();
   renderMatches();
   if (document.getElementById('tab-connections').classList.contains('active')) renderConnections();
@@ -1146,6 +1189,7 @@ function ignoreRequest(id) {
   state.receivedRequests = state.receivedRequests.filter(x => x !== id);
   state.dismissed.push(id);
   saveState();
+  track('connection_dismiss', { targetId: id, source: 'inbound' });
   renderMatches();
 }
 
@@ -1156,16 +1200,17 @@ function dismissMatch(id) {
   // visible effect, even if the user previously toggled "Show hidden profiles".
   state.showDismissed = false;
   saveState();
+  track('connection_dismiss', { targetId: id, source: 'suggested' });
   renderMatches();
 }
 
-// Delegated listener — catches clicks on any card button by data-action.
+// Delegated listener — catches clicks on any card button or link by data-action.
 // Covers inbound / suggested / pending / connected contexts on both tabs.
 function handleCardClick(e) {
-  const btn = e.target.closest('button[data-action]');
-  if (!btn) return;
-  const id = btn.dataset.id;
-  const action = btn.dataset.action;
+  const el = e.target.closest('[data-action]');
+  if (!el) return;
+  const id = el.dataset.id;
+  const action = el.dataset.action;
   switch (action) {
     case 'accept':            acceptRequest(id); break;
     case 'ignore':            ignoreRequest(id); break;
@@ -1173,6 +1218,7 @@ function handleCardClick(e) {
     case 'dismiss':           dismissMatch(id); break;
     case 'withdraw':          withdrawRequest(id); break;
     case 'remove-connection': removeConnection(id); break;
+    case 'email':             track('email_click', { targetId: id }); /* let mailto fire */ break;
   }
 }
 
@@ -1868,9 +1914,9 @@ function adminAuthHeaders() {
 
 async function adminFetch(path, init = {}) {
   const r = await fetch(path, {
+    ...init,
     credentials: 'same-origin',
     headers: { ...(init.headers || {}), ...adminAuthHeaders() },
-    ...init,
   });
   if (r.status === 403) {
     sessionStorage.removeItem('pairup_admin_pass');
@@ -1888,14 +1934,17 @@ async function loadAdminStats() {
     const r = await adminFetch('/api/admin/stats');
     if (!r.ok) throw new Error(`stats ${r.status}`);
     const stats = await r.json();
-    ['total', 'with_profile', 'active_7d', 'active_30d'].forEach((k) => {
-      const el = document.querySelector(`[data-stat="${k}"]`);
-      if (el) el.textContent = stats[k] ?? '0';
+    document.querySelectorAll('.admin-stat-num[data-stat]').forEach((el) => {
+      const k = el.dataset.stat;
+      el.textContent = stats[k] ?? '0';
     });
     const note = document.getElementById('adminOverviewNote');
     if (note) {
       const completion = stats.total ? Math.round((stats.with_profile / stats.total) * 100) : 0;
-      note.textContent = `${completion}% of registered users have completed a profile.`;
+      const requestsToEmails = stats.connection_requests_all
+        ? Math.round((stats.email_clicks_all / Math.max(1, stats.connection_requests_all)) * 100)
+        : 0;
+      note.innerHTML = `${completion}% of registered users have completed a profile · ${requestsToEmails}% of connection requests led to an email click.`;
       note.classList.add('show');
     }
   } catch (e) { console.error('[admin stats]', e); }
@@ -1936,9 +1985,10 @@ function renderAdminUsers() {
     const meta = [u.grade, u.location].filter(Boolean).map(escapeHtml).join(' · ') || '—';
     const age = relativeShort(new Date(u.updated_at).getTime());
     const conn = u.connections > 0 ? `${u.connections} conn` : '';
-    return `<div class="admin-user-row" data-uid="${escapeHtml(u.user_id)}">
+    const disabled = u.disabled ? '<span class="admin-user-disabled-pill">DISABLED</span>' : '';
+    return `<div class="admin-user-row${u.disabled ? ' is-disabled' : ''}" data-uid="${escapeHtml(u.user_id)}">
       <div>
-        <div class="admin-user-name">${name}</div>
+        <div class="admin-user-name">${name} ${disabled}</div>
         <div class="admin-user-meta">${meta} · seen ${age}</div>
       </div>
       <div class="admin-user-conn">${conn}</div>
@@ -1986,10 +2036,17 @@ async function openAdminUser(userId) {
       ? new Date(data.state.profile.lastActive).toISOString().slice(0, 19).replace('T', ' ')
       : '—';
     const updated = new Date(data.updated_at).toISOString().slice(0, 19).replace('T', ' ');
+    const isDisabled = !!data.disabled;
+    const disabledAt = data.disabled_at ? new Date(data.disabled_at).toISOString().slice(0, 19).replace('T', ' ') : '';
+    const statusBadge = isDisabled
+      ? `<span class="admin-user-status-pill is-disabled">Disabled${disabledAt ? ` · ${escapeHtml(disabledAt)}` : ''}</span>`
+      : `<span class="admin-user-status-pill is-active">Active</span>`;
+    const toggleLabel = isDisabled ? 'Re-enable user' : 'Disable user';
+    const toggleClass = isDisabled ? 'admin-user-enable-btn' : 'admin-user-disable-btn';
     body.innerHTML = `
       <div class="admin-user-detail-header">
         <div class="admin-user-detail-id">${escapeHtml(data.user_id)}</div>
-        <div class="admin-user-detail-name">${name}</div>
+        <div class="admin-user-detail-name">${name} ${statusBadge}</div>
         <div class="admin-user-detail-row">
           <span>Grade: ${grade}</span>
           <span>Location: ${loc}</span>
@@ -2002,6 +2059,7 @@ async function openAdminUser(userId) {
         <pre class="admin-user-detail-pre">${escapeHtml(JSON.stringify(data.state, null, 2))}</pre>
       </div>
       <div class="admin-user-detail-actions">
+        <button class="${toggleClass}" onclick="toggleAdminUserDisabled('${escapeHtml(data.user_id)}', ${!isDisabled})">${toggleLabel}</button>
         <button class="admin-user-delete-btn" onclick="deleteAdminUser('${escapeHtml(data.user_id)}')">Delete user</button>
       </div>
     `;
@@ -2011,6 +2069,23 @@ async function openAdminUser(userId) {
 
 function closeAdminUser() { document.getElementById('adminUserOverlay').classList.remove('open'); }
 function closeAdminUserIfBg(e) { if (e.target === document.getElementById('adminUserOverlay')) closeAdminUser(); }
+
+async function toggleAdminUserDisabled(userId, disabled) {
+  try {
+    const r = await adminFetch(`/api/admin/users/${encodeURIComponent(userId)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ disabled }),
+    });
+    if (!r.ok) throw new Error(`patch ${r.status}`);
+    closeAdminUser();
+    loadAdminUsers();
+    loadAdminStats();
+  } catch (e) {
+    console.error('[admin disable]', e);
+    alert('Failed to update user.');
+  }
+}
 
 async function deleteAdminUser(userId) {
   if (!confirm(`Delete user ${userId}? This permanently removes their profile and connections.`)) return;

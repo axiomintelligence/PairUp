@@ -1528,6 +1528,17 @@ body::before {
 }
 .admin-overview-note.show { display: block; }
 
+.admin-stat-section-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--text-tertiary);
+  margin: 14px 0 8px;
+}
+.admin-stat-section-label:first-child { margin-top: 0; }
+
 /* ── Admin: users tab ──────────────────────────────────────────────────── */
 .admin-users-toolbar {
   display: flex; gap: 8px;
@@ -1671,6 +1682,55 @@ body::before {
   transition: background var(--t-fast);
 }
 .admin-user-delete-btn:hover { background: var(--danger-bg-soft); }
+
+.admin-user-disabled-pill {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--danger);
+  background: var(--danger-bg-soft);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--r-xs);
+  padding: 1px 6px;
+  margin-left: 6px;
+}
+.admin-user-row.is-disabled .admin-user-name { color: var(--text-tertiary); }
+.admin-user-row.is-disabled .admin-user-meta,
+.admin-user-row.is-disabled .admin-user-conn { opacity: 0.55; }
+
+.admin-user-status-pill {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-radius: var(--r-xs);
+  padding: 2px 7px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+.admin-user-status-pill.is-active   { color: var(--success); background: var(--success-bg-soft); border: 1px solid var(--success-border); }
+.admin-user-status-pill.is-disabled { color: var(--danger);  background: var(--danger-bg-soft);  border: 1px solid var(--danger-border); }
+
+.admin-user-disable-btn,
+.admin-user-enable-btn {
+  padding: 8px 14px;
+  border-radius: var(--r-md);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--t-fast);
+  background: var(--bg-surface);
+}
+.admin-user-disable-btn { color: var(--warning); border: 1px solid var(--warning-border); }
+.admin-user-disable-btn:hover { background: var(--warning-bg-soft); }
+.admin-user-enable-btn  { color: var(--success); border: 1px solid var(--success-border); }
+.admin-user-enable-btn:hover  { background: var(--success-bg-soft); }
 
 /* ── Responsive ────────────────────────────────────────────────────────── */
 @media (max-width: 540px) {
