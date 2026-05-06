@@ -370,15 +370,15 @@ function scoreClass(pct) {
 }
 
 function accentColor(pct) {
-  if (pct >= 65) return '#639922';
-  if (pct >= 40) return '#EF9F27';
-  return '#E24B4A';
+  if (pct >= 65) return '#15803d';
+  if (pct >= 40) return '#b45309';
+  return '#b91c1c';
 }
 
 function matchTextColor(pct) {
-  if (pct >= 65) return '#27500A';
-  if (pct >= 40) return '#633806';
-  return '#A32D2D';
+  if (pct >= 65) return '#15803d';
+  if (pct >= 40) return '#b45309';
+  return '#b91c1c';
 }
 
 function styleLabel(s) {
@@ -517,8 +517,8 @@ function buildCard(matchObj, context) {
   const pct = matchObj.score !== undefined ? scoreToPercent(matchObj.score) : null;
   const locDisplay = locationShort(p.location, p.overseas);
 
-  const accent = pct !== null ? accentColor(pct) : '#ccc';
-  const matchColor = pct !== null ? matchTextColor(pct) : '#888';
+  const accent = pct !== null ? accentColor(pct) : '#cbd5e1';
+  const matchColor = pct !== null ? matchTextColor(pct) : '#94a3b8';
 
   // Name display: initials if the candidate is visible only because the searcher
   // relaxed their own criteria (Change 11). Flag set by getMatches in relaxed mode.
@@ -602,9 +602,9 @@ function buildCard(matchObj, context) {
     connFooter = `<div class="cconn-footer"><span>${dateStr}</span><span class="cconn-dir">${dirText}</span></div>`;
   }
 
-  const btnBlue = `background:#185FA5;color:#fff;`;
-  const btnGhost = `background:transparent;color:#999;border:0.5px solid #ccc;`;
-  const btnBase = `all:unset;display:block;width:100%;box-sizing:border-box;text-align:center;font-size:12px;font-weight:500;padding:5px 0;border-radius:7px;cursor:pointer;`;
+  const btnBlue = `background:#1e40af;color:#fff;`;
+  const btnGhost = `background:transparent;color:#64748b;border:1px solid #e2e8f0;`;
+  const btnBase = `all:unset;display:block;width:100%;box-sizing:border-box;text-align:center;font-size:12px;font-weight:500;padding:6px 0;border-radius:8px;cursor:pointer;letter-spacing:-0.005em;`;
 
   let rightCol = '';
   if (context === 'inbound') {
@@ -781,7 +781,7 @@ function openScoreModal(id) {
       <span class="score-pill ${sClass} modal-score-pct">${pct}% match</span>
     </div>
     <div class="score-breakdown">${rows}</div>
-    <div style="margin-top:12px;font-size:11px;color:#bbb;line-height:1.6;">
+    <div style="margin-top:12px;font-size:11.5px;color:#94a3b8;line-height:1.6;">
       Grade and directorate are already matched (hard gates). This score ranks remaining profiles by day complementarity, recency, overlap and location.
     </div>
   `);
@@ -842,7 +842,9 @@ function updateCompleteness() {
   document.getElementById('complFill').style.width = pct + '%';
   const labels = ['Profile incomplete', 'Getting started', 'Keep going…', 'Half way there', 'Almost there', 'Profile complete'];
   document.getElementById('complLabel').textContent = labels[filled] || 'Profile complete';
-  document.getElementById('complFill').style.background = pct === 100 ? '#27500A' : '#185FA5';
+  document.getElementById('complFill').style.background = pct === 100
+    ? 'linear-gradient(90deg, #15803d, #16a34a)'
+    : 'linear-gradient(90deg, #1e40af, #3b82f6)';
 }
 
 function loadProfileIntoForm() {
@@ -1230,7 +1232,7 @@ function renderConnectionBanner() {
     banner.style.display = 'flex';
     banner.innerHTML = `<span style="font-size:16px;flex-shrink:0;">🎉</span>
       <span>${state.newConnBanner}</span>
-      <button onclick="clearBanner()" style="margin-left:auto;background:none;border:none;cursor:pointer;color:#27500A;font-size:18px;line-height:1;padding:0 4px;">×</button>`;
+      <button onclick="clearBanner()" style="margin-left:auto;background:none;border:none;cursor:pointer;color:#15803d;font-size:18px;line-height:1;padding:0 4px;">×</button>`;
   } else {
     banner.style.display = 'none';
   }
@@ -1266,8 +1268,8 @@ function updateBadges() {
 function colourFilterChips() {
   if (!state.profile) return;
   const p = state.profile;
-  const GREEN = '#E9FAE6';
-  const GREY  = '#EDEDED';
+  const GREEN = '#dcfce7';
+  const GREY  = '#f1f5f9';
 
   // Days — green if user works that day (any value other than 'non')
   document.querySelectorAll('#filterDays .filter-chip').forEach(chip => {
